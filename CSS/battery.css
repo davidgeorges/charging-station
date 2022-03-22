@@ -1,0 +1,85 @@
+*,
+*:before,
+*:after{
+    padding: 0;
+    margin: 0;
+    box-sizing: border-box;
+}
+
+.battery{
+    height: 110px;
+    width: 225px;
+    border: 8px solid #000000;
+    position: absolute;
+    margin: auto;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    border-radius: 12px;
+}
+.battery:before{
+    content: "";
+    position: absolute;
+    margin: auto;
+    height: 55px;
+    width: 20px;
+    background-color: #000000;
+    right: -25px;
+    top: 0;
+    bottom: 0;
+    border-radius: 0 7px 7px 0;
+}
+.battery:after{
+    content: "";
+    position: absolute;
+    height: 80px;
+    width: 40px;
+    background-color: #000000;
+    margin: auto;
+    top: 0;
+    bottom: 0;
+    left: 10px;
+    border-radius: 5px;
+    box-shadow: 50px 0 transparent,
+                100px 0 transparent,
+                150px 0 transparent;
+    animation: charge 4s infinite;
+}
+@keyframes charge{
+    22%{
+        box-shadow: 50px 0 transparent,
+        100px 0 transparent,
+        150px 0 transparent;
+    }
+    25%{
+        box-shadow: 50px 0 #000000,
+        100px 0 transparent,
+        150px 0 transparent;
+    }
+    47%{
+        box-shadow: 50px 0 #000000,
+        100px 0 transparent,
+        150px 0 transparent;
+    }
+    50%{
+        box-shadow: 50px 0 #000000,
+        100px 0 #000000,
+        150px 0 transparent;
+    }
+    72%{
+        box-shadow: 50px 0 #000000,
+        100px 0 #000000,
+        150px 0 transparent;
+    }
+    75%{
+        box-shadow: 50px 0 #000000,
+        100px 0 #000000,
+        150px 0 #000000;
+    }
+    95%{
+        box-shadow: 50px 0 #000000,
+        100px 0 #000000,
+        150px 0 #000000,;
+    }
+}

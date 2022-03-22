@@ -1,0 +1,15 @@
+{
+  "dependencies": {
+    "dotenv": "^10.0.0",
+    "mqtt": "^4.2.8",
+    "mysql": "^2.18.1",
+    "serialport": "^9.2.8",
+    "socket.io": "^4.4.1",
+    "socket.io-client": "^4.4.1",
+    "virtual-serialport": "^4.0.1"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.15",
+    "serialize-javascript": "^6.0.0"
+  }
+}
