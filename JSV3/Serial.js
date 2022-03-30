@@ -30,15 +30,15 @@ class Serial {
         /* Var pour créer la connexion */
         this.port = null;
 
-        /* Index pour */
-        this.index = 1;
-
         // Données
         this.dataReceive;
 
         // Données en HEXA
         this.dataHex = [];
 
+        this.writeTerminalTimeout = null;
+
+        this.newData = false;
 
         self = this
 
@@ -89,12 +89,10 @@ class Serial {
         this.port.on('error', this.showError);
         this.port.on('data', (dataR) => {
 
-            //clear reponse
-            //this.clearTimeOutWrite();
-            //this.clearTimeOutRetryWrite();
-            //this.canWrite = true;
+            this.clearTimeOutWrite();
+            this.newData = true;
 
-            console.log("From Serial.js [95] : Données reçu.")
+            console.log("From Serial.js [92 ] : Données reçu.", dataR)
             console.log("---------------------------------------")
 
             /* On récupère les données reçu */
@@ -108,31 +106,24 @@ class Serial {
 
         });
 
-        /* on écoute si sur le serveur nous avons une demande d'écriture de données */
-        this.myEmitter.on('readRFID', (dataR) => {
-            console.log("From Serial.js : Ecriture RFID ",dataR[0].substring(2))
-            console.log("---------------------------------------")
-            this.writeData(dataR)
-        })
 
         /* on écoute si sur le serveur nous avons une demande d'écriture de données */
         this.myEmitter.on('readTerminal', (dataR) => {
 
+            console.log("Ser ", dataR)
+
             switch (dataR) {
-                case "05":
+                case "0x0b":
                     console.log("From Serial.js : Ecriture Terminal 01")
                     console.log("---------------------------------------")
-                    this.writeData(["0x01", '0x03', '0x00', '0x00', '0x00', '0x04'])
                     break;
-                case "06":
+                case "0x0c":
                     console.log("From Serial.js : Ecriture Terminal 02")
                     console.log("---------------------------------------")
-                    this.writeData(["0x02", '0x03', '0x00', '0x00', '0x00', '0x04'])
                     break;
-                case "07":
+                case "0x0d":
                     console.log("From Serial.js : Ecriture Terminal 03")
                     console.log("---------------------------------------")
-                    this.writeData(["0x03", '0x03', '0x00', '0x00', '0x00', '0x04'])
                     break;
                 default:
                     break;
@@ -156,19 +147,55 @@ class Serial {
     /* Affichage erreur */
     showError(error) {
 
-        console.log(self.pr.error('From Serial.js : port error --> ' + error));
+        console.log('From Serial.js : port error --> ' + error);
         console.log("---------------------------------------")
 
     }
 
     /* Ecriture de données sur le port */
-    writeData(dataToSend) {
-
+    async writeData(dataToSend, whosWriting) {
         /* Ecriture avec*/
-        this.port.write(dataToSend, (err) => {
-            if (err) {
-                return console.log("From Serial.js : Error on write: ", err.message)
+        //var index = 0;
+
+        return new Promise((resolve, reject) => {
+
+            switch (whosWriting) {
+                case "rfid":
+                    console.log("From Serial.js [160] : Ecriture RFID ", dataToSend[0])
+                    console.log("---------------------------------------")
+                    //Timeout a mettre ici ?
+                    this.port.write(dataToSend, (err) => {
+                        if(err){this.newData = false;}
+                    })
+                    
+                    break;
+                case "borne":
+                    console.log("From Serial.js [160] : Ecriture Terminal ", dataToSend[0][0])
+                    console.log("---------------------------------------")
+                    //Timeout a mettre ici ?
+                    dataToSend.forEach(element => {
+                        //console.log("Envoie T",index)
+                        this.port.write(element, (err => {
+                        }))
+                    })
+                    //index++
+                    break;
+                default:
+                    console.log("From Serial.js [181] : Error whosWriting: ")
+                    break;
+
             }
+
+            setTimeout(() => {
+                if (!this.newData) {
+                    reject("Error");
+                } else {
+                    resolve("Resolve");
+                    this.newData = false;
+                }
+            }, 2000)
+
+            console.log("Apres");
         })
 
     }
@@ -235,16 +262,24 @@ class Serial {
 
     emitDataToServ(keyCode) {
 
-        console.log("Key",keyCode)
+        //console.log("Key", keyCode)
 
         this.myEmitter.emit("new", {
             room: "rfid",
             data: this.dataHex,
-            adr: "0" + this.dataHex[0],
+            adr: "0x0" + this.dataHex[0],
             keyCode: keyCode
         })
 
     }
+
+    clearTimeOutWrite() {
+        this.writeTerminalTimeout = null;
+    }
+
+
+
+
 
 }
 

@@ -13,8 +13,7 @@ server.createHttpConnection(() => {
     server.manageEvent();
     server.manageSocket();
     server.db.createConnection("localhost","root","root");
-    server.createFrameRfid(3)
-    server.linkTerminalToRfid();
+    server.createAllTerminal(2)
 });
 
 

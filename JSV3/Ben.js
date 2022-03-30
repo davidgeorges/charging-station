@@ -111,3 +111,19 @@ t2(dataR) {
         }
         return arr;
     }
+
+
+    /*
+    switch (receiver) {
+        case "borne":
+            var data = [];
+            data.push(crc.toString(16).substring(0, 2))
+            data.push(crc.toString(16).substring(2))
+            break;
+        case "rfid":
+            var data = crc;
+            break;
+        default:
+            console.log("From CalculCR16.js : Error in CRC calcul");
+            break;
+    }*/

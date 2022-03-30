@@ -20,23 +20,18 @@ function calculCRC(buf, len) {
     }
     // Note, this number has low and high bytes swapped, so use it accordingly (or swap bytes)
 
-    /*
-    switch (receiver) {
-        case "borne":
-            var data = [];
-            data.push(crc.toString(16).substring(0, 2))
-            data.push(crc.toString(16).substring(2))
-            break;
-        case "rfid":
-            var data = crc;
+    switch (crc.toString(16).length) {
+        case 3:
+            crc = "0"+crc.toString(16)
             break;
         default:
-            console.log("From CalculCR16.js : Error in CRC calcul");
             break;
-    }*/
+    }
+
     var data = [];
-    data.push(crc.toString(16).substring(0, 2))
+
     data.push(crc.toString(16).substring(2))
+    data.push(crc.toString(16).substring(0, 2))
 
     return data
 
@@ -60,10 +55,10 @@ function determineString(dataR) {
             break;
     }
 
-    if(stringHex!="Err"){
-        return  stringHex;
-    }else{
+    if (stringHex != "Err") {
+        return stringHex;
+    } else {
         console.log("From calculCRC16 [66] : Error determine string to use")
     }
 }
-    module.exports = { calculCRC, determineString }
+module.exports = { calculCRC, determineString }
