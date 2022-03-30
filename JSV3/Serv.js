@@ -439,13 +439,16 @@ class Server {
         var stringHex = "";
         let indexString;
         for (let index = 0; index < nbBorne; index++) {
-            indexString = (index + 11);
+            indexString = (index + 21);
             indexString = indexString.toString(16)
             if (indexString.length == 2) {
                 stringHex = "0x";
             } else {
                 stringHex = "0x0";
             }
+
+            //console.log("T",stringHex+indexString)
+
             this.tabTerminal.push(new this.Terminal(stringHex + indexString));
             this.tabToRead.push(this.tabTerminal[index].rfid.frame[0])
 

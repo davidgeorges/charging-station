@@ -39,26 +39,26 @@ class Terminal {
 
         this.him = {
             adr: 0,
+            isUsed : false,
             anyError: false,
+            frame: [],
         }
 
         this.wattMeter = {
-            adr: 0,
+            adr: addressR,
             voltage: 0,
             rVoltage: 0,
             acPower: 0,
+            isUsed : false,
             anyError: false,
+            frame: [],
         }
 
         this.data = {
-            room: " ",
-            adr: 0,
-            adrT: addressR,
             kwh: 0,
             kwhGive: 0,
             timeP: 0,
             prio: 0,
-            isCharging: false,
         }
 
         /* Temps estimé pour le chargement */
@@ -98,7 +98,7 @@ class Terminal {
 
                 switch (lengthTab) {
                     case 0:
-                        dataToChange = this.data.adrT;
+                        dataToChange = this.wattMeter.adr;
                         break;
                     case 1:
                         dataToChange = this.listInstructions[0].toString(16);
@@ -144,8 +144,8 @@ class Terminal {
     /* Calcul du crc et insertion dans le tableau */
     createFrameRfid() {
         var stringHex = "";
-        var adr = this.data.adrT
-        adr = parseInt(adr,16)-10
+        var adr = this.wattMeter.adr
+        adr = parseInt(adr,16)-20
         if (adr.length == 2) {
             stringHex = "0x";
         } else {
@@ -172,33 +172,6 @@ class Terminal {
     resetD() {
         this.nbKwh = 0;
         this.timeP = 0;
-    }
-
-    newData() {
-
-        this.timeP = dataR.timeP
-        this.nbKwh = dataR.kwh
-        console.log(`From Terminal${self.data.adrT} [130] Data receive : [${this.timeP}] , N : [${this.nbKwh}] , NU : [${dataR.kwhGive}]`)
-        console.log("---------------------------------------")
-
-        // this.estimateCharging();
-    }
-
-    sendData() {
-
-        console.log("From Terminal" + self.data.adrT + " [138] : demande d'envoie de données terminal" + self.data.adrT)
-        console.log("---------------------------------------")
-
-        this.data = {
-            room: "rfiA",
-            adr: this.data.adr,
-            adrT: this.data.addressR,
-            kwh: this.nbKwh - 2,
-            kwhGive: self.data.kwhGive,
-            timeP: this.timeP - 1,
-            prio: 0,
-            isCharging: this.data.isUsed
-        }
     }
 
 }

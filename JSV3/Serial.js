@@ -106,30 +106,6 @@ class Serial {
 
         });
 
-
-        /* on écoute si sur le serveur nous avons une demande d'écriture de données */
-        this.myEmitter.on('readTerminal', (dataR) => {
-
-            console.log("Ser ", dataR)
-
-            switch (dataR) {
-                case "0x0b":
-                    console.log("From Serial.js : Ecriture Terminal 01")
-                    console.log("---------------------------------------")
-                    break;
-                case "0x0c":
-                    console.log("From Serial.js : Ecriture Terminal 02")
-                    console.log("---------------------------------------")
-                    break;
-                case "0x0d":
-                    console.log("From Serial.js : Ecriture Terminal 03")
-                    console.log("---------------------------------------")
-                    break;
-                default:
-                    break;
-            }
-
-        })
     }
 
     /* --------------------------- FONCTIONS EXECUTER EVENT --------------------------- */
