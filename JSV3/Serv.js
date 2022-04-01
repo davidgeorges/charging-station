@@ -1,6 +1,6 @@
 
 
-var self = null;
+let self = null;
 
 /* Implementation ... */
 class Server {
@@ -31,7 +31,6 @@ class Server {
 
         /* Terminal */
         this.Terminal = require("../JSV3/Terminal");
-
         /* Va contenir l'objet de la classe TERMINAL (Borne) */
         this.tabTerminal = [];
 
@@ -47,22 +46,15 @@ class Server {
 
         /* Nombre de bornes en utilisation */
         this.nbBorneUsed = 0;
-
         this.kwhToUse = 0;
         this.tabPrio = [{}, {}, {}];
-
         this.tabToRead = []
-
         this.canEmit = true;
-
         this.intervalEmitRfid = setInterval(this.checkIfCanEmit, 1000);
-
         self = this;
 
         console.log("From Serv.js : Constructor server   end");
         console.log("---------------------------------------")
-
-
     }
 
     /**
@@ -74,10 +66,10 @@ class Server {
 
 
         /* Si app ne vaut pas null cela veut dire qu'un serveur a déja été crée */
-        if (this.app != null) {
+        if (self.app != null) {
             console.log("From Serv.js : HTTP connection already created");
         } else {
-            this.app = this.http.createServer(function (req, res) {
+            self.app = self.http.createServer(function (req, res) {
 
                 /* Selon la requête on appel la fonction sendFile avec en paramètre la res  ( pour pouvoir répondre à la requête depuis la fonction ),
                 on envoie le type de document et le fichier a lire */
@@ -152,11 +144,11 @@ class Server {
      */
     createHttpConnection(callback) {
         // Lancement du serveur sur le port 8080 
-        this.app.listen(this.port, () => {
-            console.log(`From Serv.js : Mise en place du serveur http://localhost:${this.port}/`);
+        self.app.listen(self.port, () => {
+            console.log(`From Serv.js : Mise en place du serveur http://localhost:${self.port}/`);
             console.log("---------------------------------------");
-            this.io = new this.io.Server(this.app)
-            this.mySerial = new this.Serial("COM11", 9600, 8, 'none');
+            self.io = new self.io.Server(self.app)
+            self.mySerial = new self.Serial("COM11", 9600, 8, 'none');
             callback();
         });
     }
@@ -164,7 +156,7 @@ class Server {
     /* Envoie de fichier (AUTO OK)*/
     sendFile(res, type, encoding, fichier) {
 
-        this.fs.readFile(`./${fichier}`, encoding, (err, content) => {
+        self.fs.readFile(`./${fichier}`, encoding, (err, content) => {
             if (err) throw err;
             res.writeHead(200, { 'Content-Type': type });
             res.write(content, encoding);
@@ -176,7 +168,7 @@ class Server {
     sendHtmlData() {
 
         /* Pour chaque rfid on envoie */
-        this.tabTerminal.forEach(element => {
+        self.tabTerminal.forEach(element => {
             self.io.emit("changeB", element.data)
         });
 
@@ -184,16 +176,9 @@ class Server {
         self.io.emit("changeTerminalUsed", self.nbBorneUsed)
     }
 
-    /* LA --------------------------------------------------------------------------------------------------------------------------------  (AUTO OK)*/
-    manageEvent() {
-
-        this.listenNewData();
-
-    }
-
     /* Pour la page html (AUTO OK)*/
     manageSocket() {
-        this.io.on('connection', function (socket) {
+        self.io.on('connection', function (socket) {
             /* User or ? connection */
             switch (socket.handshake.query.myParam) {
                 case "User":
@@ -214,32 +199,32 @@ class Server {
     checkBdd(data) {
         console.log("From Serv.js [209] : Checking User in BDD");
         console.log("---------------------------------------");
-        this.db.readData(data.keyCode, (dataR) => {
+        self.db.readData(data.keyCode, (dataR) => {
             /* Si il existe dans la BDD */
             if (dataR != null) {
                 console.log("From Serial.js [214] : User available in BDD !")
                 console.log("---------------------------------------")
 
-                this.nbBorneUsed++;
+                self.nbBorneUsed++;
 
                 // Cherche l'index de l'adresse RFID
-                let index = this.findIndex("adr", data.adr)
+                let index = self.findIndex("adrRfid", data.adr)
 
                 /* Modifications des valeurs */
-                this.tabTerminal[index].data.kwh = dataR[0].nbKwh;
-                this.tabTerminal[index].data.timeP = dataR[0].timeP;
-                this.tabTerminal[index].data.kwhGive = 0;
-                this.tabTerminal[index].isUsed = true;
+                self.tabTerminal[index].data.kwh = dataR[0].nbKwh;
+                self.tabTerminal[index].data.timeP = dataR[0].timeP;
+                self.tabTerminal[index].data.kwhGive = 0;
+                self.tabTerminal[index].isUsed = true;
 
                 //Calcul prio et envoie de données
-                this.calcPrio(this.nbBorneUsed - 1, index, () => {
-                    this.sendData(this.tabTerminal[index].data);
+                self.calcPrio(self.nbBorneUsed - 1, index, () => {
+                    self.sendData(self.tabTerminal[index].data);
                 });
 
             } else {
                 console.log("From Serv.js [ 231 ] : User not available in BDD.");
                 console.log("---------------------------------------");
-                this.intervalEmitRfid = setInterval(this.emitRfid, 2000);
+                self.intervalEmitRfid = setInterval(self.emitRfid, 2000);
             }
         });
     }
@@ -247,11 +232,11 @@ class Server {
     /* Check si le rfid est deja utilisé ( carte deja passer et  accepter ) , si rfid non utilisé --> checkBdd (AUTO OK) */
     checkRfidUsed(dataR) {
 
-        if (this.checkRfidCanBeUsed(dataR)) {
+        if (self.checkRfidCanBeUsed(dataR.adr)) {
 
 
-            if (this.tabTerminal.some(element => element.rfid.adr == dataR.adr && element.isUsed == false)) {
-                this.checkBdd(dataR)
+            if (self.tabTerminal.some(element => element.rfid.adr == dataR.adr && element.isUsed == false)) {
+                self.checkBdd(dataR)
             } else {
                 console.log("From Serial.js [ 216 ] : RFID Already used !");
                 console.log("---------------------------------------")
@@ -265,45 +250,56 @@ class Server {
     /* Envoie les données a la borne (AUTO OK) */
     sendData(data) {
 
-        this.io.emit("changeTerminalUsed", self.nbBorneUsed) //Envoie le nombre de borne utilisé pour la page html 
+        self.io.emit("changeTerminalUsed", self.nbBorneUsed) //Envoie le nombre de borne utilisé pour la page html 
         data.room = "rfid";
         data.isUsed = true;
-        this.io.emit("changeB", data) //Envoie de la borne utilisé pour la page html 
+        self.io.emit("changeB", data) //Envoie de la borne utilisé pour la page html 
         //Envoie les données a la borne Ex { room : "firstData", payload : [5,7] }
-        this.estimateCharging(data);
+        self.estimateCharging(data);
 
     }
 
     /* Pour demande au port communication d'écrire (AUTO OK) */
     async emit() {
-        var res = " ";
+
+        let res = " ";
         let index = 0;
+        let adrRfid = "";
+
         if (self.tabToRead.length) {
             self.canEmit = false;
             for (index = 0; index < self.tabToRead.length; index++) {
-                console.log('calling Av');
-                
-                await self.mySerial.writeData(self.tabToRead[index], "rfid").then((e) => {
-                    console.log("Ici 1", e);
-                    res = "d"
+                //console.log('calling Av');
+                await self.mySerial.writeData(self.tabToRead[index].data, self.tabToRead[index].whoIsWriting).then((e) => {
+                    console.log("Ici 1 from ", self.tabToRead[index].whoIsWriting, "rec :", e);
+                    res = "removeFromTab"
+                    adrRfid = e.adr
                 }).catch((e) => {
-                    console.log("Ici 2", e);
-                    res = "d2"
+                    console.log("Ici 2 from ", self.tabToRead[index].whoIsWriting, "rec :", e);
+                    res = "setTimeOut"
                 })
 
-                switch (res) {
-                    case "d":
-                        console.log("remove du tab");
+                //Selon
+                console.log("Ici",adrRfid)
 
-                        break;
-                    case "d2":
-                        console.log("deuxieme  chance");
-                        break;
-                    default:
-                        break;
+                if (self.checkRfidCanBeUsed(adrRfid) && self.tabToRead[index].data[0] == adrRfid) {
+                    switch (res) {
+                        case "removeFromTab":
+                            self.emitRemoveFromTab(index, adrRfid)
+                            break;
+                        case "setTimeOut":
+                            self.emitSetTimeOut()
+                            break;
+                        default:
+                            break;
+                    }
                 }
-                console.log('calling Ap', index);
+
+
+
+                //console.log('calling Ap', index);
             }
+
             self.canEmit = true;
 
 
@@ -312,117 +308,100 @@ class Server {
 
     }
 
-    /* Ecoute sur les events sur la room "new" (AUTO OK) */
-    listenNewData() {
-        this.myEmitter.on("new", (dataR) => {
-            switch (dataR.room) {
-                case "rfid":
-                    console.log("From Serv.js [298] : New Rfid init vent trigger !");
-                    console.log("---------------------------------------")
-                    /* Si la chaine vaut " " c'est qu'il n'y a jamais eu de modification sur le panneau */
-                    self.checkRfidUsed(dataR);
-                    break
-            }
-
-        })
-    }
 
     /* Selon le nombre de véhicule , on fourni les kW a utilisé (AUTO PAS OK) */
     calculKwh() {
 
-        switch (this.nbBorneUsed) {
+        switch (self.nbBorneUsed) {
             case 1:
                 console.log("From Serv.js [359] : Utilisation de 7kWh"); console.log("---------------------------------------")
-                this.kwhToUse = 7;
+                self.kwhToUse = 7;
                 break;
             case 2:
                 console.log("From Serv.js [363] : Utilisation [3.5] | [3.5] kWh"); console.log("---------------------------------------")
-                this.kwhToUse = 3.5;
+                self.kwhToUse = 3.5;
                 break;
             case 3:
                 console.log("From Serv.js [367] : Utilisation de [2.33] | [2.33] | [2.33] kWh"); console.log("---------------------------------------")
-                this.kwhToUse = 2.33;
+                self.kwhToUse = 2.33;
                 break;
             default:
                 console.log("From Serv.js [370] : Erreur calcul kWh !"); console.log("---------------------------------------")
                 break;
         }
 
-        this.tabTerminal.forEach(element => {
-            element.data.kwhGive = this.kwhToUse;
+        self.tabTerminal.forEach(element => {
+            element.data.kwhGive = self.kwhToUse;
         });
 
     }
 
     /* Calcul la prio selon les données (Présence et kW) (AUTO PAS OK)*/
     async calcPrio(nbBorneUsed, indexR, callback) {
-        var prio = 0;
+        let prio = 0;
         let index;
 
         /* Pour chaque borne on calcul la prio */
         for (index = 0; index <= nbBorneUsed; index++) {
             switch (index) {
                 case 0:
-                    prio = this.tabTerminal[index].data.timeP / this.tabTerminal[index].data.kwh;
+                    prio = self.tabTerminal[index].data.timeP / self.tabTerminal[index].data.kwh;
                     break;
                 case 1:
-                    prio = this.tabTerminal[index].data.timeP / this.tabTerminal[index].data.kwh;
+                    prio = self.tabTerminal[index].data.timeP / self.tabTerminal[index].data.kwh;
                     break;
                 case 2:
-                    prio = this.tabTerminal[index].data.timeP / this.tabTerminal[index].data.kwh;
+                    prio = self.tabTerminal[index].data.timeP / self.tabTerminal[index].data.kwh;
                     break;
                 default:
                     break;
             }
 
             /* Insertion prio et l'adresse borne */
-            this.tabTerminal[index].data.prio = Math.round(prio * 100) / 100;
+            self.tabTerminal[index].data.prio = Math.round(prio * 100) / 100;
         }
 
-        this.calculKwh();
-        if (this.nbBorneUsed > 1) {
+        self.calculKwh();
+        if (self.nbBorneUsed > 1) {
             console.log("INDEX 394 ", index)
-            this.resendData(indexR)
+            //self.resendData(indexR)
         }
 
         callback();
     }
 
-    /* Va renvoyer les données qui on été modifiés (AUTO OK) */
+    /* Va renvoyer les données qui on été modifiés (AUTO OK) 
     resendData(index) {
-        this.tabTerminal.forEach(element => {
-            if (this.tabTerminal[index].data.adrT != element.data.adrT && element.isUsed == true) {
+        self.tabTerminal.forEach(element => {
+            if (self.tabTerminal[index].data.adrT != element.data.adrT && element.isUsed == true) {
                 //console.log("on envoie");
-                this.estimateCharging(element.data);
+                self.estimateCharging(element.data);
                 element.data.room = "rfid";
-                this.io.emit("changeB", element.data)
+                self.io.emit("changeB", element.data)
             }
         });
-    }
+    }*/
 
     /* Check si le rfid est autorisé a être utilisé (AUTO OK) */
-    checkRfidCanBeUsed(data) {
-        //console.log("t",rfid.adr)
-
-        var isOk = false;
-
-        for (let index = 0; index < this.tabTerminal.length; index++) {
-            if (this.tabTerminal[index].rfid.frame[0][0] == data.adr) {
+    checkRfidCanBeUsed(adrR) {
+        //console.log("La :",self.tabTerminal[0].rfid.frame[0][0])
+        let isOk = false;
+        for (let index = 0; index < self.tabTerminal.length; index++) {
+            if (self.tabTerminal[index].rfid.frame[0][0] == adrR) {
                 isOk = true;
                 return isOk
             }
         }
-
         return isOk;
     }
 
     /* Va remplacer les valeurs nécéssaires lors de la réception des anciennes données (AUTO OK) */
     replaceData(dataR) {
 
-        if (this.nbBorneUsed > 1) {
-            for (let index = 0; index < this.nbBorneUsed - 1; index++) {
-                this.Terminal[index].data.timeP = dataR.timeP;
-                this.Terminal[index].data.kwh = dataR.kwh;
+        if (self.nbBorneUsed > 1) {
+            for (let index = 0; index < self.nbBorneUsed - 1; index++) {
+                self.Terminal[index].data.timeP = dataR.timeP;
+                self.Terminal[index].data.kwh = dataR.kwh;
             }
         }
     }
@@ -436,7 +415,7 @@ class Server {
 
     /* Creation de toute les bornes (AUTO OK) */
     createAllTerminal(nbBorne) {
-        var stringHex = "";
+        let stringHex = "";
         let indexString;
         for (let index = 0; index < nbBorne; index++) {
             indexString = (index + 21);
@@ -449,16 +428,18 @@ class Server {
 
             //console.log("T",stringHex+indexString)
 
-            this.tabTerminal.push(new this.Terminal(stringHex + indexString));
-            this.tabToRead.push(this.tabTerminal[index].rfid.frame[0])
+            self.tabTerminal.push(new self.Terminal(stringHex + indexString));
+            self.tabToRead.push({
+                whoIsWriting: "rfid",
+                data: self.tabTerminal[index].rfid.frame[0],
+            })
 
         }
         console.log("From Serv.js [518] : Terminal created.")
         console.log("---------------------------------------");
 
-        //console.log("Ici 2",this.tabTerminal)
+        //console.log("Ici 2",self.tabTerminal)
     }
-
 
     /* Retrouve l'index de l'element a modifier (AUTO OK)  */
     findIndex(val, dataR) {
@@ -466,18 +447,18 @@ class Server {
         let index = 0;
 
         switch (val) {
-            case "adr":
-                for (index = 0; index < this.tabTerminal.length; index++) {
-                    if (this.tabTerminal[index].rfid.adr == dataR) {
-                        //console.log(this.tabTerminal[index].data);
+            case "adrRfid":
+                for (index = 0; index < self.tabTerminal.length; index++) {
+                    if (self.tabTerminal[index].rfid.adr == dataR) {
+                        //console.log(self.tabTerminal[index].data);
                         return index
                     }
                 }
                 break;
-            case "adrT":
-                for (index = 0; index < this.tabTerminal.length; index++) {
-                    if (this.tabTerminal[index].wattMeter == dataR) {
-                        //console.log(this.tabTerminal[index].data);
+            case "adrWattMeter":
+                for (index = 0; index < self.tabTerminal.length; index++) {
+                    if (self.tabTerminal[index].wattMeter == dataR) {
+                        //console.log(self.tabTerminal[index].data);
                         return index
                     }
                 }
@@ -488,19 +469,19 @@ class Server {
     }
 
     countSec = () => {
-        this.tabTerminal.forEach(element => {
+        self.tabTerminal.forEach(element => {
             if (element.isUsed === true) {
 
                 if (element.data.kwh <= 0) {
                     console.log("Chargement fini !")
                     element.isUsed = false;
                     element.data.room = "resetP";
-                    this.io.emit("changeB", element.data);
+                    self.io.emit("changeB", element.data);
                 } else {
                     element.data.kwh = (element.data.kwh - (element.data.kwhGive / 3600)).toFixed(3)
                     element.data.timeP = element.data.timeP - 0.01;
                     element.data.room = "rfid";
-                    this.io.emit("changeB", element.data) //Envoie de la borne utilisé pour la page html 
+                    self.io.emit("changeB", element.data) //Envoie de la borne utilisé pour la page html 
                 }
 
             }
@@ -515,7 +496,43 @@ class Server {
         }
     }
 
- 
+    /**
+     * 
+     * @param  adrR  adresse du RFID déclencher
+     * 
+     */
+    pushAllFrame(adrR) {
+
+        let indexRfid = self.findIndex("adrRfid", adrR);
+
+        /* Pour chaque Trame lié au rfid reçu et qui a été accépter par la borne 
+           Nous les insérons dans le tableau des trames a lire (wattMeter et  ihm) */
+        for (let index = 0; index < self.tabTerminal[indexRfid].wattMeter.allFrame.length; index++) {
+
+            self.tabToRead.push({
+                whoIsWriting: "wattMeter",
+                data: self.tabTerminal[indexRfid].wattMeter.allFrame[index],
+
+            });
+            console.log("Tab to read :", self.tabToRead[index].data[0]);
+
+        }
+
+    }
+
+    /* On enleve la trame qui n'est plus nécéssaire */
+    emitRemoveFromTab(indexR, adrRfidR) {
+        self.tabToRead.splice(indexR, 1);
+        console.log("ok receive");
+        //Si celui qui a écrit est un rfid , on doit mettre toutes les trames de la borne
+        self.pushAllFrame(adrRfidR)
+    }
+
+    /* Erreur lors de la réception de données, module ne communique plus.
+       Mise en place d'un timeout pour laisser quelques secondes avant de réessayer */
+    emitSetTimeOut() {
+        console.log("deuxieme  chance");
+    }
 
 
 }

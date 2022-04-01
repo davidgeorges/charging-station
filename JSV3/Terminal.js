@@ -1,5 +1,3 @@
-const { determineString } = require('./CalculCR16');
-
 var self = null;
 
 class Terminal {
@@ -20,15 +18,14 @@ class Terminal {
         // Nombre de mots  a lire  ( 1 ou 2 mots a lire )
         this.listRest = [0x01, 0x02];
 
-        /* CRC-16 */
+        /* CRC-16 Modbus */
         this.crc;
-        // Va stocker tout les trames
-        this.allFrame = [[], [], [], []]
 
-
+        // Va stocker tout les trames (Volt,Puissance,?,?)
         this.nbKwh = 0;
         this.timeP = 0;
 
+        // Lecteur rfid
         this.rfid = {
             adr: 0,
             isUsed : false,
@@ -36,7 +33,7 @@ class Terminal {
             frame: [],
         }
 
-
+        // Interface
         this.him = {
             adr: 0,
             isUsed : false,
@@ -44,6 +41,7 @@ class Terminal {
             frame: [],
         }
 
+        // ?
         this.wattMeter = {
             adr: addressR,
             voltage: 0,
@@ -51,7 +49,7 @@ class Terminal {
             acPower: 0,
             isUsed : false,
             anyError: false,
-            frame: [],
+            allFrame: [[],[],[],[],],
         }
 
         this.data = {
@@ -62,12 +60,12 @@ class Terminal {
         }
 
         /* Temps estimé pour le chargement */
-        this.estimateTimeCharging = 0
         this.isUsed = false;
+        self = this;
 
         /* Appel méthode */
         this.createBorne()
-        self = this;
+        
 
     }
 
@@ -78,12 +76,12 @@ class Terminal {
      */
     createBorne() {
 
-        this.createAllTr();
+        self.createAllTr();
     }
 
     /* Création de tout les trames de la BORNE */
     createAllTr() {
-        this.crc = null;
+        self.crc = null;
         var indexRest = 0;
         var stringHex = ""
         var dataToChange = null;
@@ -98,22 +96,22 @@ class Terminal {
 
                 switch (lengthTab) {
                     case 0:
-                        dataToChange = this.wattMeter.adr;
+                        dataToChange = self.wattMeter.adr;
                         break;
                     case 1:
-                        dataToChange = this.listInstructions[0].toString(16);
+                        dataToChange = self.listInstructions[0].toString(16);
                         break;
                     case 2:
-                        dataToChange = this.listCommand[index][0].toString(16)
+                        dataToChange = self.listCommand[index][0].toString(16)
                         break;
                     case 3:
-                        dataToChange = this.listCommand[index][1].toString(16)
+                        dataToChange = self.listCommand[index][1].toString(16)
                         break;
                     case 4:
                         dataToChange = "0x00"
                         break;
                     case 5:
-                        dataToChange = this.listRest[indexRest].toString(16)
+                        dataToChange = self.listRest[indexRest].toString(16)
                         break;
                     default:
                         dataToChange = "Err"
@@ -121,37 +119,37 @@ class Terminal {
                 }
 
                 if (dataToChange != "Err") {
-                    stringHex = this.crc16.determineString(dataToChange)
+                    stringHex = self.crc16.determineString(dataToChange)
                 }
 
                 if (stringHex != "Err") {
-                    this.allFrame[index].push(stringHex + dataToChange);
+                    self.wattMeter.allFrame[index].push(stringHex + dataToChange);
                 }
 
             }
             //Calcul et Ajout CRC16/MODBUS
-            this.crc = this.crc16.calculCRC(this.allFrame[index], 6)
+            self.crc = self.crc16.calculCRC(self.wattMeter.allFrame[index], 6)
             /* Ajout du crc dans la trame */
-            for (let lengtOfCrc = 0; lengtOfCrc < this.crc.length; lengtOfCrc++) {
-                stringHex = this.crc16.determineString(this.crc[lengtOfCrc])
-                this.allFrame[index].push(stringHex + this.crc[lengtOfCrc])
+            for (let lengtOfCrc = 0; lengtOfCrc < self.crc.length; lengtOfCrc++) {
+                stringHex = self.crc16.determineString(self.crc[lengtOfCrc])
+                self.wattMeter.allFrame[index].push(stringHex + self.crc[lengtOfCrc])
             }
-            //console.log("Test ",this.allFrame[index])
+            //console.log("Test ",self.wattMeter.allFrame[index])
         }
-        this.createFrameRfid();
+        self.createFrameRfid();
     }
 
     /* Calcul du crc et insertion dans le tableau */
     createFrameRfid() {
         var stringHex = "";
-        var adr = this.wattMeter.adr
+        var adr = self.wattMeter.adr
         adr = parseInt(adr,16)-20
         if (adr.length == 2) {
             stringHex = "0x";
         } else {
             stringHex = "0x0";
         }
-        this.rfid.frame.push([
+        self.rfid.frame.push([
             stringHex + (adr.toString()), "0x03",
             "0x00",
             "0x00",
@@ -160,18 +158,18 @@ class Terminal {
         ]);
         //Calcul et Ajout CRC16/MODBUS
         var stringHex = "";
-        this.crc = this.crc16.calculCRC(this.rfid.frame[0], 6)
-        for (let lengtOfCrc = 0; lengtOfCrc < this.crc.length; lengtOfCrc++) {
-            stringHex = this.crc16.determineString(this.crc[lengtOfCrc])
-            this.rfid.frame[0].push(stringHex + this.crc[lengtOfCrc])
+        self.crc = self.crc16.calculCRC(self.rfid.frame[0], 6)
+        for (let lengtOfCrc = 0; lengtOfCrc < self.crc.length; lengtOfCrc++) {
+            stringHex = self.crc16.determineString(self.crc[lengtOfCrc])
+            self.rfid.frame[0].push(stringHex + self.crc[lengtOfCrc])
         }
-        this.rfid.adr = this.rfid.frame[0][0]
-        console.log("Ici ",this.rfid.frame[0])
+        self.rfid.adr = self.rfid.frame[0][0]
+        console.log("Ici ",self.rfid.frame[0])
     }
 
     resetD() {
-        this.nbKwh = 0;
-        this.timeP = 0;
+        self.nbKwh = 0;
+        self.timeP = 0;
     }
 
 }

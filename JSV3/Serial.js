@@ -21,12 +21,6 @@ class Serial {
         this.crc16 = require('./CalculCR16')
         this.valCrc16
 
-        /* Paramètres de la communication */
-        this.pathPort = pathPortR;
-        this.baudRate = baudRateR;
-        this.parity = parityR;
-        this.nbBit = nbBitR;
-
         /* Var pour créer la connexion */
         this.port = null;
 
@@ -40,10 +34,14 @@ class Serial {
 
         this.newData = false;
 
+        this.data = {
+
+        }
+
         self = this
 
         /* Appel des méthodes pour créer la communication serial */
-        this.createConnectionPort();
+        this.createConnectionPort(pathPortR, baudRateR, nbBitR, parityR);
 
         console.log("From Serial.js : Constructor serial end");
         console.log("---------------------------------------")
@@ -58,25 +56,25 @@ class Serial {
      * @param {string} pathPort path of the SERIAL PORT
      * @param {int} baudRate baudRate value 
      */
-    createConnectionPort() {
+    createConnectionPort(pathPortR, baudRateR, nbBitR, parityR) {
 
         /* Si le port vaut null il n'a jamais été crée */
-        if (this.port != null) { console.error("From Serial.js : Error --> make sure you didn't create a connectionPort two times."); }
+        if (self.port != null) { console.error("From Serial.js : Error --> make sure you didn't create a connectionPort two times."); }
 
         /* Creation du port serial */
         else {
             /* Création de la communication */
-            this.port = new this.SerialPort(this.pathPort, {
-                baudRate: this.baudRate,
-                databits: this.data,
-                parity: this.parity
+            self.port = new self.SerialPort(pathPortR, {
+                baudRate: baudRateR,
+                databits: nbBitR,
+                parity: parityR
             })
 
-            console.log("From Serial.js : Port connection successfully created : " + this.port.baudRate);
+            console.log("From Serial.js : Port connection successfully created : " + self.port.baudRate);
             console.log("---------------------------------------")
 
             /* Mise en place de tout les listeners*/
-            this.allListener();
+            self.allListener();
         }
     }
 
@@ -84,25 +82,26 @@ class Serial {
     allListener() {
 
         /* Mise en place des listener d'events */
-        this.port.on('open', this.showPortOpen);
-        this.port.on('close', this.showPortClose);
-        this.port.on('error', this.showError);
-        this.port.on('data', (dataR) => {
+        self.port.on('open', self.showPortOpen);
+        self.port.on('close', self.showPortClose);
+        self.port.on('error', self.showError);
+        self.port.on('data', (dataR) => {
 
-            this.clearTimeOutWrite();
-            this.newData = true;
-
+            
             console.log("From Serial.js [92 ] : Données reçu.", dataR)
             console.log("---------------------------------------")
 
             /* On récupère les données reçu */
-            this.dataReceive = dataR;
+            self.dataReceive = dataR;
 
             /* Conversion en hexa */
-            this.converTabToHex(this.dataReceive);
+            self.converTabToHex(self.dataReceive);
 
             /* Conditions pour conmparer les octets */
-            this.instructToDo();
+            self.instructToDo();
+
+            self.newData = true;
+            self.clearTimeOutWrite();
 
         });
 
@@ -128,50 +127,47 @@ class Serial {
 
     }
 
-    /* Ecriture de données sur le port */
+    /* Ecriture de données sur le port (async)*/
     async writeData(dataToSend, whosWriting) {
-        /* Ecriture avec*/
-        //var index = 0;
-
+        //Renvoie une promesse
         return new Promise((resolve, reject) => {
-
             switch (whosWriting) {
                 case "rfid":
                     console.log("From Serial.js [160] : Ecriture RFID ", dataToSend[0])
                     console.log("---------------------------------------")
                     //Timeout a mettre ici ?
-                    this.port.write(dataToSend, (err) => {
-                        if(err){this.newData = false;}
+                    self.port.write(dataToSend, (err) => {
+                        if(err){console.log("From Serial.js [142] : ",err)}
                     })
-                    
                     break;
-                case "borne":
-                    console.log("From Serial.js [160] : Ecriture Terminal ", dataToSend[0][0])
+                case "wattMeter":
+                    console.log("From Serial.js [160] : Ecriture Terminal ", dataToSend)
                     console.log("---------------------------------------")
                     //Timeout a mettre ici ?
                     dataToSend.forEach(element => {
                         //console.log("Envoie T",index)
-                        this.port.write(element, (err => {
+                        self.port.write(element, (err => {
+                            if(err){console.log("From Serial.js [142] : ",err)}
                         }))
                     })
-                    //index++
                     break;
                 default:
-                    console.log("From Serial.js [181] : Error whosWriting: ")
+                    console.log("From Serial.js [157] : Error whosWriting: ")
                     break;
-
             }
-
+            
+            /* Mise en place d'un timeout pour reject ou resolve la promesse
+               Si on a une erreur lors de la réception des données on reject*/
             setTimeout(() => {
-                if (!this.newData) {
+                if (!self.newData) {
                     reject("Error");
                 } else {
-                    resolve("Resolve");
-                    this.newData = false;
+                    resolve(this.data);
+                    self.newData = false;
                 }
-            }, 2000)
+            }, 1000)
 
-            console.log("Apres");
+            //console.log("Apres");
         })
 
     }
@@ -179,11 +175,11 @@ class Serial {
     /* Conversion en HEXA */
     converTabToHex(tabToConvert) {
 
-        this.dataHex = [];
+        self.dataHex = [];
 
         tabToConvert.forEach(element => {
 
-            this.dataHex.push(element.toString(16))
+            self.dataHex.push(element.toString(16))
         });
 
         console.log("From Serial.js : Conversion en HEXA effectuer.");
@@ -194,13 +190,13 @@ class Serial {
     instructToDo() {
         var dataDest = " ";
         var keyCode = " ";
-        switch (this.dataHex[2]) {
+        switch (self.dataHex[2]) {
             //Lecture 8 mot = RFID
             case "8":
                 console.log("From Serial.js [183] : RFID data receive.")
                 console.log("---------------------------------------")
-                //console.log(this.dataHex)
-                keyCode = this.convertRfid(this.dataHex)
+                //console.log(self.dataHex)
+                keyCode = self.convertRfid(self.dataHex)
                 dataDest = "rfid";
                 break;
             case "3":
@@ -213,7 +209,12 @@ class Serial {
 
         switch (dataDest) {
             case "rfid":
-                this.emitDataToServ(keyCode, this.dataHex)
+                self.data = {
+                    room: "rfid",
+                    data: self.dataHex,
+                    adr: "0x0" + self.dataHex[0],
+                    keyCode: keyCode
+                }
                 break;
             default:
                 break;
@@ -236,21 +237,10 @@ class Serial {
         return str;
     }
 
-    emitDataToServ(keyCode) {
 
-        //console.log("Key", keyCode)
-
-        this.myEmitter.emit("new", {
-            room: "rfid",
-            data: this.dataHex,
-            adr: "0x0" + this.dataHex[0],
-            keyCode: keyCode
-        })
-
-    }
 
     clearTimeOutWrite() {
-        this.writeTerminalTimeout = null;
+        self.writeTerminalTimeout = null;
     }
 
 
