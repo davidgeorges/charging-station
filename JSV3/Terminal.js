@@ -21,7 +21,6 @@ class Terminal {
         /* CRC-16 Modbus */
         this.crc;
 
-        // Va stocker tout les trames (Volt,Puissance,?,?)
         this.nbKwh = 0;
         this.timeP = 0;
 
@@ -29,7 +28,8 @@ class Terminal {
         this.rfid = {
             adr: 0,
             isUsed : false,
-            anyError: false,
+            anyError : false,
+            nbRetry : 0,
             frame: [],
         }
 
@@ -37,7 +37,8 @@ class Terminal {
         this.him = {
             adr: 0,
             isUsed : false,
-            anyError: false,
+            anyError : false,
+            nbRetry : 0,
             frame: [],
         }
 
@@ -47,8 +48,9 @@ class Terminal {
             voltage: 0,
             rVoltage: 0,
             acPower: 0,
+            anyError : false,
             isUsed : false,
-            anyError: false,
+            nbRetry : 0,
             allFrame: [[],[],[],[],],
         }
 
@@ -60,7 +62,11 @@ class Terminal {
         }
 
         /* Temps estimé pour le chargement */
+
+
+        this.nbRetry = 0,
         this.isUsed = false;
+
         self = this;
 
         /* Appel méthode */
@@ -164,7 +170,7 @@ class Terminal {
             self.rfid.frame[0].push(stringHex + self.crc[lengtOfCrc])
         }
         self.rfid.adr = self.rfid.frame[0][0]
-        console.log("Ici ",self.rfid.frame[0])
+        //console.log("Ici ",self.rfid.frame[0])
     }
 
     resetD() {

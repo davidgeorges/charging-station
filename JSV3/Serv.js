@@ -49,8 +49,9 @@ class Server {
         this.kwhToUse = 0;
         this.tabPrio = [{}, {}, {}];
         this.tabToRead = []
+        this.tabError = []
         this.canEmit = true;
-        this.intervalEmitRfid = setInterval(this.checkIfCanEmit, 1000);
+        this.intervalEmitRfid = null;
         self = this;
 
         console.log("From Serv.js : Constructor server   end");
@@ -80,8 +81,8 @@ class Server {
                     case "/index.html":
                         self.sendFile(res, 'text/html', 'utf-8', '../HTML/index.html')
                         break
-                    case "/JSV3/Test.js":
-                        self.sendFile(res, 'text/javascript', 'utf-8', '../JSV3/Test.js')
+                    case "/JSV3/client.js":
+                        self.sendFile(res, 'text/javascript', 'utf-8', '../JSV3/client.js')
                         break
                     case "/JS/Listener":
                         self.sendFile(res, 'text/javascript', 'utf-8', '../JSV3/Listener.js')
@@ -208,13 +209,13 @@ class Server {
                 self.nbBorneUsed++;
 
                 // Cherche l'index de l'adresse RFID
-                let index = self.findIndex("adrRfid", data.adr)
+                let index = self.findIndex("rfid", data.adr)
 
                 /* Modifications des valeurs */
                 self.tabTerminal[index].data.kwh = dataR[0].nbKwh;
                 self.tabTerminal[index].data.timeP = dataR[0].timeP;
                 self.tabTerminal[index].data.kwhGive = 0;
-                self.tabTerminal[index].isUsed = true;
+                self.tabTerminal[index].status.isUsed = true;
 
                 //Calcul prio et envoie de données
                 self.calcPrio(self.nbBorneUsed - 1, index, () => {
@@ -235,7 +236,7 @@ class Server {
         if (self.checkRfidCanBeUsed(dataR.adr)) {
 
 
-            if (self.tabTerminal.some(element => element.rfid.adr == dataR.adr && element.isUsed == false)) {
+            if (self.tabTerminal.some(element => element.rfid.adr == dataR.adr && element.status.isUsed == false)) {
                 self.checkBdd(dataR)
             } else {
                 console.log("From Serial.js [ 216 ] : RFID Already used !");
@@ -252,7 +253,7 @@ class Server {
 
         self.io.emit("changeTerminalUsed", self.nbBorneUsed) //Envoie le nombre de borne utilisé pour la page html 
         data.room = "rfid";
-        data.isUsed = true;
+        data.status.isUsed = true;
         self.io.emit("changeB", data) //Envoie de la borne utilisé pour la page html 
         //Envoie les données a la borne Ex { room : "firstData", payload : [5,7] }
         self.estimateCharging(data);
@@ -262,50 +263,91 @@ class Server {
     /* Pour demande au port communication d'écrire (AUTO OK) */
     async emit() {
 
-        let res = " ";
-        let index = 0;
-        let adrRfid = "";
+        //console.log("Premier tesst",this.tabToRead)
 
+        let index;
+        let index2;
+        let dataR = "";
+        let copyTabTerminal = {};
+
+        //Si le tableau contient un élément
         if (self.tabToRead.length) {
             self.canEmit = false;
+
             for (index = 0; index < self.tabToRead.length; index++) {
-                //console.log('calling Av');
-                await self.mySerial.writeData(self.tabToRead[index].data, self.tabToRead[index].whoIsWriting).then((e) => {
-                    console.log("Ici 1 from ", self.tabToRead[index].whoIsWriting, "rec :", e);
-                    res = "removeFromTab"
-                    adrRfid = e.adr
-                }).catch((e) => {
-                    console.log("Ici 2 from ", self.tabToRead[index].whoIsWriting, "rec :", e);
-                    res = "setTimeOut"
-                })
+                //On va chercher l'index de l'initiateur de la trame dans le tableau de bornes
+                //Et on récupére la valeur pour pouvoir la modifier
+                console.log("Reading ... : ",self.tabToRead[index].adr)
+                console.log("T", self.tabToRead[index].whoIsWriting)
+                index2 = self.findIndex(self.tabToRead[index].whoIsWriting, self.tabToRead[index].adr);
+                console.log("T2", index2)
+                switch (self.tabToRead[index].whoIsWriting) {
+                    case "rfid":
+                        copyTabTerminal = self.tabTerminal[index2].rfid;
+                        break;
+                    case "wattMeter":
+                        copyTabTerminal = self.tabTerminal[index2].wattMeter;
+                        break;
+                    case "him":
+                        copyTabTerminal = self.tabTerminal[index2].him;
+                        break;
+                    default:
+                        break;
+                }
 
-                //Selon
-                console.log("Ici",adrRfid)
+                //console.log("Test ",copyTabTerminal)
 
-                if (self.checkRfidCanBeUsed(adrRfid) && self.tabToRead[index].data[0] == adrRfid) {
-                    switch (res) {
-                        case "removeFromTab":
-                            self.emitRemoveFromTab(index, adrRfid)
+                // Si on n'a pas d'erreur on peut écrire
+                if (!copyTabTerminal.anyError) {
+                    await self.mySerial.writeData(self.tabToRead[index].data, self.tabToRead[index].whoIsWriting).then((e) => {
+                        console.log("From Serv.js [273] : Sucess write");
+                        dataR = e
+                    }).catch((e) => {
+                        console.log("From Serv.js [277] :Error timeout");
+                        dataR = e
+                    })
+                }
+                //console.log(" TT 3:", dataR, self.tabToRead[index].data[0])
+
+                //Si il y a déja une erreur et qu'on a toujours pas reçu
+                //On met la borne en panne 
+                //console.log("t", copyTabTerminal)
+                console.log("St:", dataR)
+
+
+                // Si l'index des erreurs est supérieur ou égale a 2 on met la borne en panne.
+                if (copyTabTerminal.nbRetry >= 2) {
+                    dataR.status = "brokenDown";
+                }
+                // Si l'adresse Rfid reçu est celle actuelle
+                if (self.checkRfidCanBeUsed(dataR.adr) && self.tabToRead[index].data[0] == dataR.adr) {
+                    switch (dataR.status) {
+                        case "sucess":
+                            console.log("Ici 1 ");
+                            self.emitRemoveFromTab(index, dataR.adr)
                             break;
-                        case "setTimeOut":
-                            self.emitSetTimeOut()
+                        case "error":
+                            console.log("From Serv.js [301] : retrying terminal in 5 seconds.!");
+                            copyTabTerminal.anyError = true;
+                            self.emitSetTimeOut(copyTabTerminal)
+                            break;
+                        case "brokenDown":
+                            console.log("From Serv.js [305] : terminal broken-down !");
+                            self.fromTabToReadToTabError(index)
                             break;
                         default:
                             break;
                     }
+
                 }
-
-
-
                 //console.log('calling Ap', index);
+                console.log("---------------------------------------")
             }
-
+            // console.log("---------------------------------------")
             self.canEmit = true;
-
-
+        } else {
+            console.log("From Serv.js [319] : tabToRead is empty error !")
         }
-
-
     }
 
 
@@ -370,18 +412,6 @@ class Server {
         callback();
     }
 
-    /* Va renvoyer les données qui on été modifiés (AUTO OK) 
-    resendData(index) {
-        self.tabTerminal.forEach(element => {
-            if (self.tabTerminal[index].data.adrT != element.data.adrT && element.isUsed == true) {
-                //console.log("on envoie");
-                self.estimateCharging(element.data);
-                element.data.room = "rfid";
-                self.io.emit("changeB", element.data)
-            }
-        });
-    }*/
-
     /* Check si le rfid est autorisé a être utilisé (AUTO OK) */
     checkRfidCanBeUsed(adrR) {
         //console.log("La :",self.tabTerminal[0].rfid.frame[0][0])
@@ -426,19 +456,17 @@ class Server {
                 stringHex = "0x0";
             }
 
-            //console.log("T",stringHex+indexString)
-
             self.tabTerminal.push(new self.Terminal(stringHex + indexString));
             self.tabToRead.push({
                 whoIsWriting: "rfid",
                 data: self.tabTerminal[index].rfid.frame[0],
+                adr: self.tabTerminal[index].rfid.adr,
             })
 
         }
         console.log("From Serv.js [518] : Terminal created.")
         console.log("---------------------------------------");
-
-        //console.log("Ici 2",self.tabTerminal)
+        //console.log("T",this.tabToRead)
     }
 
     /* Retrouve l'index de l'element a modifier (AUTO OK)  */
@@ -447,18 +475,26 @@ class Server {
         let index = 0;
 
         switch (val) {
-            case "adrRfid":
+            case "rfid":
                 for (index = 0; index < self.tabTerminal.length; index++) {
                     if (self.tabTerminal[index].rfid.adr == dataR) {
-                        //console.log(self.tabTerminal[index].data);
+                        console.log("From Serv.js [478] : Index rfid trouvé ! ", dataR);
                         return index
                     }
                 }
                 break;
-            case "adrWattMeter":
+            case "wattMeter":
                 for (index = 0; index < self.tabTerminal.length; index++) {
-                    if (self.tabTerminal[index].wattMeter == dataR) {
-                        //console.log(self.tabTerminal[index].data);
+                    if (self.tabTerminal[index].wattMeter.adr == dataR) {
+                        console.log("From Serv.js [478] : Index borne trouvé ! :");
+                        return index
+                    }
+                }
+                break;
+            case "him":
+                for (index = 0; index < self.tabTerminal.length; index++) {
+                    if (self.tabTerminal[index].him.adr == dataR) {
+                        console.log("From Serv.js [478] : Index ihm trouvé ! ");
                         return index
                     }
                 }
@@ -468,13 +504,14 @@ class Server {
         }
     }
 
+    /* Simulation toutes les secondes va modifier les kW , estimation charge... et l'afficher sur l'html */
     countSec = () => {
         self.tabTerminal.forEach(element => {
-            if (element.isUsed === true) {
+            if (element.status.isUsed === true) {
 
                 if (element.data.kwh <= 0) {
                     console.log("Chargement fini !")
-                    element.isUsed = false;
+                    element.status.isUsed = false;
                     element.data.room = "resetP";
                     self.io.emit("changeB", element.data);
                 } else {
@@ -488,6 +525,7 @@ class Server {
         });
     }
 
+    // Va vérifier si nous pouvons emit les bornes
     checkIfCanEmit() {
 
         if (self.canEmit == true) {
@@ -502,22 +540,17 @@ class Server {
      * 
      */
     pushAllFrame(adrR) {
-
-        let indexRfid = self.findIndex("adrRfid", adrR);
-
+        let indexRfid = self.findIndex("rfid", adrR);
         /* Pour chaque Trame lié au rfid reçu et qui a été accépter par la borne 
            Nous les insérons dans le tableau des trames a lire (wattMeter et  ihm) */
         for (let index = 0; index < self.tabTerminal[indexRfid].wattMeter.allFrame.length; index++) {
-
             self.tabToRead.push({
                 whoIsWriting: "wattMeter",
                 data: self.tabTerminal[indexRfid].wattMeter.allFrame[index],
-
+                adr: self.tabTerminal[indexRfid].wattMeter.adr,
             });
             console.log("Tab to read :", self.tabToRead[index].data[0]);
-
         }
-
     }
 
     /* On enleve la trame qui n'est plus nécéssaire */
@@ -530,10 +563,32 @@ class Server {
 
     /* Erreur lors de la réception de données, module ne communique plus.
        Mise en place d'un timeout pour laisser quelques secondes avant de réessayer */
-    emitSetTimeOut() {
-        console.log("deuxieme  chance");
+    emitSetTimeOut(dataR) {
+        //console.log("Iic", self.tabTerminal[indexR].status.anyError);
+        setTimeout(() => {
+            dataR.anyError = false;
+            dataR.nbRetry++;
+        }, 6000)
+        // console.log("Iic 2");
     }
 
+    /* Supression des trames ne communiquant plus
+       Ensuite nous les insérons dans le tableau cqui contient seulement les trames qui ne communique plus */
+    fromTabToReadToTabError(indexR) {
+        //on push dans le tableau d'erreur la trame
+        self.tabError.push(self.tabToRead[indexR])
+        //on enléve la trame qui ne fonctionne plus du tableau a lire
+        self.tabToRead.splice(indexR, 1);
+    }
+
+    /* Va créer l'interval pour emit les trames */
+    createEmitInteval() {
+        if (self.intervalEmitRfid == null) {
+            self.intervalEmitRfid = setInterval(this.checkIfCanEmit, 3000);
+        } else {
+            console.log("From Serv.js [549] : Error emit interval already created");
+        }
+    }
 
 }
 

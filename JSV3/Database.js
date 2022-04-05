@@ -39,7 +39,7 @@ class Database {
             anyError = "Error_DB_Already_Created";
         }
 
-        //callback(anyError);
+        callback(anyError);
     }
 
     readData(dataToRead, cl) {

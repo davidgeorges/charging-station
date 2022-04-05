@@ -34,9 +34,7 @@ class Serial {
 
         this.newData = false;
 
-        this.data = {
-
-        }
+        this.data = null;
 
         self = this
 
@@ -45,9 +43,6 @@ class Serial {
 
         console.log("From Serial.js : Constructor serial end");
         console.log("---------------------------------------")
-
-
-
     }
 
 
@@ -87,7 +82,7 @@ class Serial {
         self.port.on('error', self.showError);
         self.port.on('data', (dataR) => {
 
-            
+
             console.log("From Serial.js [92 ] : Données reçu.", dataR)
             console.log("---------------------------------------")
 
@@ -101,7 +96,7 @@ class Serial {
             self.instructToDo();
 
             self.newData = true;
-            self.clearTimeOutWrite();
+            clearTimeout(this.writeTerminalTimeout)
 
         });
 
@@ -130,42 +125,49 @@ class Serial {
     /* Ecriture de données sur le port (async)*/
     async writeData(dataToSend, whosWriting) {
         //Renvoie une promesse
+        let adr = "";
         return new Promise((resolve, reject) => {
             switch (whosWriting) {
                 case "rfid":
                     console.log("From Serial.js [160] : Ecriture RFID ", dataToSend[0])
-                    console.log("---------------------------------------")
+                    //console.log("---------------------------------------")
+                    adr = dataToSend[0];
                     //Timeout a mettre ici ?
                     self.port.write(dataToSend, (err) => {
-                        if(err){console.log("From Serial.js [142] : ",err)}
+                        if (err) { console.log("From Serial.js [142] : ", err) }
                     })
                     break;
                 case "wattMeter":
                     console.log("From Serial.js [160] : Ecriture Terminal ", dataToSend)
-                    console.log("---------------------------------------")
+                    //console.log("---------------------------------------")
+                    adr = dataToSend[0];
                     //Timeout a mettre ici ?
-                    dataToSend.forEach(element => {
-                        //console.log("Envoie T",index)
-                        self.port.write(element, (err => {
-                            if(err){console.log("From Serial.js [142] : ",err)}
-                        }))
-                    })
+                    //console.log("Envoie T",index)
+                    self.port.write(dataToSend, (err => {
+                        if (err) { console.log("From Serial.js [142] : ", err) }
+                    }))
                     break;
                 default:
                     console.log("From Serial.js [157] : Error whosWriting: ")
                     break;
             }
-            
+
             /* Mise en place d'un timeout pour reject ou resolve la promesse
                Si on a une erreur lors de la réception des données on reject*/
             setTimeout(() => {
                 if (!self.newData) {
-                    reject("Error");
+                    reject({
+                        status: "error",
+                        adr: adr
+                    });
                 } else {
-                    resolve(this.data);
+                    resolve({
+                        status: "sucess",
+                        adr: adr
+                    });
                     self.newData = false;
                 }
-            }, 1000)
+            }, 1500)
 
             //console.log("Apres");
         })
@@ -174,14 +176,11 @@ class Serial {
 
     /* Conversion en HEXA */
     converTabToHex(tabToConvert) {
-
         self.dataHex = [];
-
         tabToConvert.forEach(element => {
 
             self.dataHex.push(element.toString(16))
         });
-
         console.log("From Serial.js : Conversion en HEXA effectuer.");
         console.log("---------------------------------------")
     }
@@ -219,10 +218,8 @@ class Serial {
             default:
                 break;
         }
-
     }
 
-    /* ---------------------------------- DATA ---------------------------------- */
 
     /* Conversion des données de la carte RFID reçu */
     convertRfid(str1) {
@@ -236,15 +233,6 @@ class Serial {
         }
         return str;
     }
-
-
-
-    clearTimeOutWrite() {
-        self.writeTerminalTimeout = null;
-    }
-
-
-
 
 
 }
