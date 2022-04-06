@@ -262,25 +262,25 @@ class Server {
 
     /* Pour demande au port communication d'écrire (AUTO OK) */
     async emit() {
-
-        //console.log("Premier tesst",this.tabToRead)
-
+        //Va contenir l'index pour le tableau de trame a lire
         let index;
+        //Va contenir l'index de l'adresse de la trame situé dans le tableau de borne
         let index2;
-        let dataR = "";
+        //Va contenir les données reçu lors du resolve ou reject de la promesse
+        let dataR = {};
+        //Va contenir la borne qui essaye d'écrire une trame
         let copyTabTerminal = {};
-
         //Si le tableau contient un élément
         if (self.tabToRead.length) {
+            //Nous mettons canEmit a false pour interdire a l'intervalle de rappeler cette méthode
             self.canEmit = false;
-
+            //On boucle toutes les trames
             for (index = 0; index < self.tabToRead.length; index++) {
+
                 //On va chercher l'index de l'initiateur de la trame dans le tableau de bornes
-                //Et on récupére la valeur pour pouvoir la modifier
-                console.log("Reading ... : ",self.tabToRead[index].adr)
-                console.log("T", self.tabToRead[index].whoIsWriting)
                 index2 = self.findIndex(self.tabToRead[index].whoIsWriting, self.tabToRead[index].adr);
-                console.log("T2", index2)
+
+                // On determine qui écrit et on fait une copie de la valeur a modifier
                 switch (self.tabToRead[index].whoIsWriting) {
                     case "rfid":
                         copyTabTerminal = self.tabTerminal[index2].rfid;
@@ -295,53 +295,57 @@ class Server {
                         break;
                 }
 
-                //console.log("Test ",copyTabTerminal)
-
-                // Si on n'a pas d'erreur on peut écrire
+                //Si on n'a pas d'erreur on peut écrire
                 if (!copyTabTerminal.anyError) {
-                    await self.mySerial.writeData(self.tabToRead[index].data, self.tabToRead[index].whoIsWriting).then((e) => {
-                        console.log("From Serv.js [273] : Sucess write");
-                        dataR = e
-                    }).catch((e) => {
-                        console.log("From Serv.js [277] :Error timeout");
-                        dataR = e
-                    })
-                }
-                //console.log(" TT 3:", dataR, self.tabToRead[index].data[0])
+                    //On écrit et on 
+                    await self.mySerial.writeData(self.tabToRead[index].data, self.tabToRead[index].whoIsWriting)
+                        .then((e) => {
+                            console.log("From Serv.js [273] : Sucess write");
+                            dataR = e
+                        }).catch((e) => {
 
-                //Si il y a déja une erreur et qu'on a toujours pas reçu
-                //On met la borne en panne 
-                //console.log("t", copyTabTerminal)
-                console.log("St:", dataR)
-
-
-                // Si l'index des erreurs est supérieur ou égale a 2 on met la borne en panne.
-                if (copyTabTerminal.nbRetry >= 2) {
-                    dataR.status = "brokenDown";
-                }
-                // Si l'adresse Rfid reçu est celle actuelle
-                if (self.checkRfidCanBeUsed(dataR.adr) && self.tabToRead[index].data[0] == dataR.adr) {
-                    switch (dataR.status) {
-                        case "sucess":
-                            console.log("Ici 1 ");
-                            self.emitRemoveFromTab(index, dataR.adr)
-                            break;
-                        case "error":
-                            console.log("From Serv.js [301] : retrying terminal in 5 seconds.!");
-                            copyTabTerminal.anyError = true;
-                            self.emitSetTimeOut(copyTabTerminal)
-                            break;
-                        case "brokenDown":
-                            console.log("From Serv.js [305] : terminal broken-down !");
-                            self.fromTabToReadToTabError(index)
-                            break;
-                        default:
-                            break;
+                            console.log("From Serv.js [277] : Error timeout");
+                            dataR = e
+                        })
+                    //Si l'index du nombre d'essai est supérieur ou égal à 2 on met la borne en panne.
+                    if (copyTabTerminal.nbRetry >= 2) {
+                        dataR.status = "brokenDown";
                     }
 
+                    //console.log("Test val :", self.tabToRead[index].data[0], "et ", dataR.adr)
+
+                    //Si l'adresse Rfid reçu est celle actuelle
+                    if (self.tabToRead[index].data[0] == dataR.adr) {
+                        switch (dataR.status) {
+                            //La communication a réussi ont enleve 
+                            case "sucess":
+                                console.log("Ici 1 ");
+                                //Si celui qui écrit est un rfid on enlève du tableau de trame a lire ( on en a plus besoin )
+                                if (self.tabToRead[index].whoIsWriting == "rfid") {
+                                    self.emitRemoveFromTab(index, dataR.adr)
+                                    index--;
+                                }
+                                break;
+                            //La communication a échoué donc on interdit l'écriture du système (IHM,RFID ou MESUREUR)
+                            case "error":
+                                console.log("From Serv.js [301] : retrying terminal in 5 seconds.!");
+                                copyTabTerminal.anyError = true;
+                                self.emitSetTimeOut(copyTabTerminal)
+                                break;
+                            //La communication a échoué à 3 FOIS,nous enlevons la trame du tableau à lire et l'insérons dans le tableau des erreurs
+                            case "brokenDown":
+                                console.log("From Serv.js [305] : terminal broken-down !");
+                                self.fromTabToReadToTabError(index)
+                                break;
+                            default:
+                                break;
+                        }
+
+                    }
+                    console.log("---------------------------------------")
+                } else {
+                    console.log("From Serv.js [311] : Error not writing.")
                 }
-                //console.log('calling Ap', index);
-                console.log("---------------------------------------")
             }
             // console.log("---------------------------------------")
             self.canEmit = true;
@@ -529,7 +533,7 @@ class Server {
     checkIfCanEmit() {
 
         if (self.canEmit == true) {
-            console.clear();
+            //console.clear();
             self.emit();
         }
     }
@@ -584,7 +588,7 @@ class Server {
     /* Va créer l'interval pour emit les trames */
     createEmitInteval() {
         if (self.intervalEmitRfid == null) {
-            self.intervalEmitRfid = setInterval(this.checkIfCanEmit, 3000);
+            self.intervalEmitRfid = setInterval(this.checkIfCanEmit, 5000);
         } else {
             console.log("From Serv.js [549] : Error emit interval already created");
         }
