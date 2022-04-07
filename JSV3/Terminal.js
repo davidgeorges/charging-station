@@ -7,6 +7,7 @@ class Terminal {
 
         /* Import module */
         this.crc16 = require('./CalculCR16')
+        this.crc;
 
         this.emitter = require('./Listener');
         this.myEmitter = this.emitter.myEmitter
@@ -17,9 +18,6 @@ class Terminal {
         this.listCommand = [[0x01, 0x10], [0x01, 0x31], [0x01, 0x39], [0x01, 0x40]];
         // Nombre de mots  a lire  ( 1 ou 2 mots a lire )
         this.listRest = [0x01, 0x02];
-
-        /* CRC-16 Modbus */
-        this.crc;
 
         this.nbKwh = 0;
         this.timeP = 0;
@@ -70,7 +68,7 @@ class Terminal {
         self = this;
 
         /* Appel méthode */
-        this.createBorne()
+        this.createTerminal()
         
 
     }
@@ -80,7 +78,7 @@ class Terminal {
      *
      * 
      */
-    createBorne() {
+    createTerminal() {
 
         self.createAllTr();
     }

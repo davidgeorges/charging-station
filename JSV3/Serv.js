@@ -5,53 +5,61 @@ let self = null;
 /* Implementation ... */
 class Server {
 
-    /* Constructeur */
+    //Constructeur 
     constructor() {
 
-        /* Import des modules */
+        //Import des modules 
         this.http = require('http');
         this.fs = require('fs');
         this.dotenv = require('dotenv').config({ path: "../.env" })
 
-        /* Events */
+        //Events
         this.emitter = require('./Listener');
         this.myEmitter = this.emitter.myEmitter
 
-        /* Database */
+        //Database
         this.mysql = require('../JSV3/Database');
         this.db = new this.mysql();
 
-        /* Serial com */
+        //Serial com
         this.Serial = require("../JSV3/Serial");
         this.mySerial = null;
 
-        /* CRC-16 */
+        //CRC-16
         this.crc;
         this.crc16 = require('./CalculCR16')
 
-        /* Terminal */
+        //Terminal ( Borne )
         this.Terminal = require("../JSV3/Terminal");
-        /* Va contenir l'objet de la classe TERMINAL (Borne) */
+        //Va contenir les objets de la classe TERMINAL (Borne)
         this.tabTerminal = [];
 
-        /* Récupération  des informations si une des informations n'est pas disponible nous prenons l'information a droite du ou ( || )*/
+        /* Récupération  des informations si une des informations n'est pas disponible,
+         nous prenons l'information a droite du ou ( || )*/
         this.port = process.env.PORT || 8080;
         this.fichierHTML = process.env.fichierHTML || '../HTML/index.html'
         this.fichierTEST = process.env.fichierTEST || '../JS/Test.js'
         this.fichierCSS = process.env.fichierCSS || '../CSS/headers.css'
 
-        /* Server app,requête,response */
+        //Server app,requête,response
         this.app = null;
+
+        //Socket.io
         this.io = require("socket.io");
 
-        /* Nombre de bornes en utilisation */
+        //Nombre de bornes en utilisation
         this.nbBorneUsed = 0;
         this.kwhToUse = 0;
-        this.tabPrio = [{}, {}, {}];
+
+        //Tableau des trame a écrire
         this.tabToRead = []
+        //Tableau dont l'écriture a échoué
         this.tabError = []
+        //Flag pour permettre de toutes les X secondes d'appeler la fonction méthode emit()
         this.canEmit = true;
+        //Va contenir l'interval sur la méthode emit()
         this.intervalEmitRfid = null;
+        //Pour 
         self = this;
 
         console.log("From Serv.js : Constructor server   end");
@@ -141,7 +149,9 @@ class Server {
     }
 
     /**
-     * Create the http connection and WebSocket. 
+     * Créer la connexion HTTP.
+     * Instanciation du Socket
+     * Instanciation du port serial 
      */
     createHttpConnection(callback) {
         // Lancement du serveur sur le port 8080 
@@ -154,9 +164,8 @@ class Server {
         });
     }
 
-    /* Envoie de fichier (AUTO OK)*/
+    //Envoie de fichier (AUTO OK)
     sendFile(res, type, encoding, fichier) {
-
         self.fs.readFile(`./${fichier}`, encoding, (err, content) => {
             if (err) throw err;
             res.writeHead(200, { 'Content-Type': type });
@@ -165,7 +174,7 @@ class Server {
         })
     }
 
-    /* Pour envoyer les données lors d'une nouvelle connexion (AUTO OK)*/
+    //Envoie les données de chaque borne lors de la connexion d'un utilisateur sur la page WEB (AUTO OK) A MODIFIER
     sendHtmlData() {
 
         /* Pour chaque rfid on envoie */
@@ -173,11 +182,11 @@ class Server {
             self.io.emit("changeB", element.data)
         });
 
-        /* On change le nombre de borne en utilisation ( html ) */
+        /*On change le nombre de borne en utilisation ( html )*/
         self.io.emit("changeTerminalUsed", self.nbBorneUsed)
     }
 
-    /* Pour la page html (AUTO OK)*/
+    //On gére la communucation en Socket pour la page WEB
     manageSocket() {
         self.io.on('connection', function (socket) {
             /* User or ? connection */
@@ -196,19 +205,23 @@ class Server {
         });
     }
 
-    /* check si le code RFID est connu dans le BDD et emet a la borne concerné les données ( tps et kWh ) (AUTO OK) */
+    //check si le code RFID est connu dans le BDD et émet a la borne concerné les données ( tps et kWh ) (AUTO OK)
     checkBdd(data) {
         console.log("From Serv.js [209] : Checking User in BDD");
         console.log("---------------------------------------");
+        
+        //Utilisation de la méthode readData qui utilise une requête SQL pour lire dans la BDD
         self.db.readData(data.keyCode, (dataR) => {
-            /* Si il existe dans la BDD */
+            /*Si les données ne valent pas nulles,
+              Le code de la carte existe dans la base de données*/
             if (dataR != null) {
                 console.log("From Serial.js [214] : User available in BDD !")
                 console.log("---------------------------------------")
 
+                //On incrémente le nombre de bornes en utilisation
                 self.nbBorneUsed++;
 
-                // Cherche l'index de l'adresse RFID
+                //On Cherche l'index de l'adresse RFID correspondant à celui dans le tableau de bornes
                 let index = self.findIndex("rfid", data.adr)
 
                 /* Modifications des valeurs */
@@ -217,7 +230,7 @@ class Server {
                 self.tabTerminal[index].data.kwhGive = 0;
                 self.tabTerminal[index].status.isUsed = true;
 
-                //Calcul prio et envoie de données
+                //On Calcule le coefficient de prioritées et envoie de données
                 self.calcPrio(self.nbBorneUsed - 1, index, () => {
                     self.sendData(self.tabTerminal[index].data);
                 });
@@ -230,12 +243,12 @@ class Server {
         });
     }
 
-    /* Check si le rfid est deja utilisé ( carte deja passer et  accepter ) , si rfid non utilisé --> checkBdd (AUTO OK) */
+    //On vérifie si le Rfid est déjà utilisé ( carte déjà passée et accepté),si Rfid non utilisé-checkbdd (AUTO OK) 
     checkRfidUsed(dataR) {
 
+        //On vérifie si il peut être utilisé (si le rfid existe)
         if (self.checkRfidCanBeUsed(dataR.adr)) {
-
-
+            //On vérifie s'il n'est pas deja utilisé
             if (self.tabTerminal.some(element => element.rfid.adr == dataR.adr && element.status.isUsed == false)) {
                 self.checkBdd(dataR)
             } else {
@@ -248,19 +261,17 @@ class Server {
         }
     }
 
-    /* Envoie les données a la borne (AUTO OK) */
+    //Envoie les données a la borne (AUTO OK)
     sendData(data) {
-
         self.io.emit("changeTerminalUsed", self.nbBorneUsed) //Envoie le nombre de borne utilisé pour la page html 
         data.room = "rfid";
         data.status.isUsed = true;
         self.io.emit("changeB", data) //Envoie de la borne utilisé pour la page html 
         //Envoie les données a la borne Ex { room : "firstData", payload : [5,7] }
         self.estimateCharging(data);
-
     }
 
-    /* Pour demande au port communication d'écrire (AUTO OK) */
+    //Demande au port communication d'écrire (AUTO OK)
     async emit() {
         //Va contenir l'index pour le tableau de trame a lire
         let index;
@@ -276,10 +287,8 @@ class Server {
             self.canEmit = false;
             //On boucle toutes les trames
             for (index = 0; index < self.tabToRead.length; index++) {
-
                 //On va chercher l'index de l'initiateur de la trame dans le tableau de bornes
                 index2 = self.findIndex(self.tabToRead[index].whoIsWriting, self.tabToRead[index].adr);
-
                 // On determine qui écrit et on fait une copie de la valeur a modifier
                 switch (self.tabToRead[index].whoIsWriting) {
                     case "rfid":
@@ -294,7 +303,6 @@ class Server {
                     default:
                         break;
                 }
-
                 //Si on n'a pas d'erreur on peut écrire
                 if (!copyTabTerminal.anyError) {
                     //On écrit et on 
@@ -311,9 +319,7 @@ class Server {
                     if (copyTabTerminal.nbRetry >= 2) {
                         dataR.status = "brokenDown";
                     }
-
                     //console.log("Test val :", self.tabToRead[index].data[0], "et ", dataR.adr)
-
                     //Si l'adresse Rfid reçu est celle actuelle
                     if (self.tabToRead[index].data[0] == dataR.adr) {
                         switch (dataR.status) {
@@ -340,7 +346,6 @@ class Server {
                             default:
                                 break;
                         }
-
                     }
                     console.log("---------------------------------------")
                 } else {
@@ -355,7 +360,7 @@ class Server {
     }
 
 
-    /* Selon le nombre de véhicule , on fourni les kW a utilisé (AUTO PAS OK) */
+    //Selon le nombre de véhicule , on fourni les kW a utilisé (AUTO PAS OK)
     calculKwh() {
 
         switch (self.nbBorneUsed) {
@@ -382,12 +387,11 @@ class Server {
 
     }
 
-    /* Calcul la prio selon les données (Présence et kW) (AUTO PAS OK)*/
+    //Calcul le coefficient de prioritées selon les données (Présence et kW) (AUTO PAS OK)
     async calcPrio(nbBorneUsed, indexR, callback) {
         let prio = 0;
         let index;
-
-        /* Pour chaque borne on calcul la prio */
+        //Pour chaque borne on calcule la
         for (index = 0; index <= nbBorneUsed; index++) {
             switch (index) {
                 case 0:
@@ -402,11 +406,9 @@ class Server {
                 default:
                     break;
             }
-
-            /* Insertion prio et l'adresse borne */
+            //Insertion priorité et l'adresse borne
             self.tabTerminal[index].data.prio = Math.round(prio * 100) / 100;
         }
-
         self.calculKwh();
         if (self.nbBorneUsed > 1) {
             console.log("INDEX 394 ", index)
@@ -416,7 +418,7 @@ class Server {
         callback();
     }
 
-    /* Check si le rfid est autorisé a être utilisé (AUTO OK) */
+    //Check si le rfid est autorisé a être utilisé (AUTO OK) 
     checkRfidCanBeUsed(adrR) {
         //console.log("La :",self.tabTerminal[0].rfid.frame[0][0])
         let isOk = false;
@@ -429,7 +431,7 @@ class Server {
         return isOk;
     }
 
-    /* Va remplacer les valeurs nécéssaires lors de la réception des anciennes données (AUTO OK) */
+    //Va remplacer les valeurs nécéssaires lors de la réception des anciennes données (AUTO OK) *
     replaceData(dataR) {
 
         if (self.nbBorneUsed > 1) {
@@ -440,14 +442,14 @@ class Server {
         }
     }
 
-    /* (AUTO OK) */
+    //(AUTO OK)
     estimateCharging(dataR) {
 
         console.log("From Serv.js [437] : Terminal" + dataR.adrT + " Estimation charge : ", Math.round(((dataR.kwh / dataR.kwhGive) * 60 + Number.EPSILON) * 100) / 100, "minutes.");
         console.log("---------------------------------------")
     }
 
-    /* Creation de toute les bornes (AUTO OK) */
+    //Creation de toute les bornes (AUTO OK) 
     createAllTerminal(nbBorne) {
         let stringHex = "";
         let indexString;
@@ -473,7 +475,7 @@ class Server {
         //console.log("T",this.tabToRead)
     }
 
-    /* Retrouve l'index de l'element a modifier (AUTO OK)  */
+    // Retrouve l'index de l'element a modifier (AUTO OK)
     findIndex(val, dataR) {
 
         let index = 0;
@@ -508,7 +510,7 @@ class Server {
         }
     }
 
-    /* Simulation toutes les secondes va modifier les kW , estimation charge... et l'afficher sur l'html */
+    //Simulation toutes les secondes va modifier les kW , estimation charge... et l'afficher sur l'html
     countSec = () => {
         self.tabTerminal.forEach(element => {
             if (element.status.isUsed === true) {
@@ -529,7 +531,7 @@ class Server {
         });
     }
 
-    // Va vérifier si nous pouvons emit les bornes
+    //Va vérifier si nous pouvons appeler la méthode emit()
     checkIfCanEmit() {
 
         if (self.canEmit == true) {
@@ -553,11 +555,11 @@ class Server {
                 data: self.tabTerminal[indexRfid].wattMeter.allFrame[index],
                 adr: self.tabTerminal[indexRfid].wattMeter.adr,
             });
-            console.log("Tab to read :", self.tabToRead[index].data[0]);
+            console.log("Tab to read :", self.tabToRead[index].data);
         }
     }
 
-    /* On enleve la trame qui n'est plus nécéssaire */
+    //On enleve la trame qui n'est plus nécéssaire
     emitRemoveFromTab(indexR, adrRfidR) {
         self.tabToRead.splice(indexR, 1);
         console.log("ok receive");
@@ -585,13 +587,18 @@ class Server {
         self.tabToRead.splice(indexR, 1);
     }
 
-    /* Va créer l'interval pour emit les trames */
+    //Va créer l'interval pour emit les trames
     createEmitInteval() {
         if (self.intervalEmitRfid == null) {
             self.intervalEmitRfid = setInterval(this.checkIfCanEmit, 5000);
         } else {
             console.log("From Serv.js [549] : Error emit interval already created");
         }
+    }
+
+    //Va créer la trame pour l'intercace IHM
+    createHimFrame(){
+
     }
 
 }

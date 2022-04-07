@@ -30,15 +30,18 @@ class Serial {
         // Données en HEXA
         this.dataHex = [];
 
+        //Interval
         this.writeTerminalTimeout = null;
 
+        //Flag pour savoir si nous avons reçu les données
         this.newData = false;
 
+        //Va
         this.data = null;
 
         self = this
 
-        /* Appel des méthodes pour créer la communication serial */
+        //Appel de méthodes pour créer la communication serial
         this.createConnectionPort(pathPortR, baudRateR, nbBitR, parityR);
 
         console.log("From Serial.js : Constructor serial end");
@@ -47,9 +50,9 @@ class Serial {
 
 
     /**
-     * Create port communication
-     * @param {string} pathPort path of the SERIAL PORT
-     * @param {int} baudRate baudRate value 
+     * Crée la communication serial
+     * @param pathPort chemin du PORT SERIAL
+     * @param baudRate vitesse de transmission
      */
     createConnectionPort(pathPortR, baudRateR, nbBitR, parityR) {
 
@@ -147,6 +150,16 @@ class Serial {
                         if (err) { console.log("From Serial.js [142] : ", err) }
                     }))
                     break;
+                case "him":
+                    console.log("From Serial.js [160] : Ecriture HIM ", dataToSend)
+                    // //console.log("---------------------------------------")
+                    // adr = dataToSend[0];
+                    // //Timeout a mettre ici ?
+                    // //console.log("Envoie T",index)
+                    // self.port.write(dataToSend, (err => {
+                    //     if (err) { console.log("From Serial.js [142] : ", err) }
+                    // }))
+                    break;
                 default:
                     console.log("From Serial.js [157] : Error whosWriting: ")
                     break;
@@ -195,7 +208,7 @@ class Serial {
                 console.log("From Serial.js [183] : RFID data receive.")
                 console.log("---------------------------------------")
                 //console.log(self.dataHex)
-                keyCode = self.convertRfid(self.dataHex)
+                keyCode = self.convertRfidDataToString(self.dataHex)
                 dataDest = "rfid";
                 break;
             case "3":
@@ -222,7 +235,7 @@ class Serial {
 
 
     /* Conversion des données de la carte RFID reçu */
-    convertRfid(str1) {
+    convertRfidDataToString(str1) {
         // Converion en String , récupération des données nécéssaires , et suppressin des virgules */
         var hex = str1.toString();
         hex = hex.substr(6, 23)
