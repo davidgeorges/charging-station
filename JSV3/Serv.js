@@ -160,6 +160,7 @@ class Server {
             console.log("---------------------------------------");
             self.io = new self.io.Server(self.app)
             self.mySerial = new self.Serial("COM11", 9600, 8, 'none');
+
             callback();
         });
     }
@@ -209,7 +210,7 @@ class Server {
     checkBdd(data) {
         console.log("From Serv.js [209] : Checking User in BDD");
         console.log("---------------------------------------");
-        
+
         //Utilisation de la méthode readData qui utilise une requête SQL pour lire dans la BDD
         self.db.readData(data.keyCode, (dataR) => {
             /*Si les données ne valent pas nulles,
@@ -273,6 +274,9 @@ class Server {
 
     //Demande au port communication d'écrire (AUTO OK)
     async emit() {
+        console.log("Appel emit")
+        //Va contenir l'index pour le tableau de trame a lire
+        let tabLength = self.tabToRead.length;
         //Va contenir l'index pour le tableau de trame a lire
         let index;
         //Va contenir l'index de l'adresse de la trame situé dans le tableau de borne
@@ -303,6 +307,9 @@ class Server {
                     default:
                         break;
                 }
+
+                console.log("TEST : ", self.tabToRead[index].whoIsWriting,"et ",copyTabTerminal.adr)
+
                 //Si on n'a pas d'erreur on peut écrire
                 if (!copyTabTerminal.anyError) {
                     //On écrit et on 
@@ -314,11 +321,12 @@ class Server {
 
                             console.log("From Serv.js [277] : Error timeout");
                             dataR = e
+                            //Si l'index du nombre d'essai est supérieur ou égal à 2 on met la borne en panne.
+                            if (copyTabTerminal.nbRetry >= 2) {
+                                dataR.status = "brokenDown";
+                            }
                         })
-                    //Si l'index du nombre d'essai est supérieur ou égal à 2 on met la borne en panne.
-                    if (copyTabTerminal.nbRetry >= 2) {
-                        dataR.status = "brokenDown";
-                    }
+
                     //console.log("Test val :", self.tabToRead[index].data[0], "et ", dataR.adr)
                     //Si l'adresse Rfid reçu est celle actuelle
                     if (self.tabToRead[index].data[0] == dataR.adr) {
@@ -549,7 +557,7 @@ class Server {
         let indexRfid = self.findIndex("rfid", adrR);
         /* Pour chaque Trame lié au rfid reçu et qui a été accépter par la borne 
            Nous les insérons dans le tableau des trames a lire (wattMeter et  ihm) */
-        for (let index = 0; index < self.tabTerminal[indexRfid].wattMeter.allFrame.length; index++) {
+        for (let index = 0; index <self.tabTerminal[indexRfid].wattMeter.allFrame.length; index++) {
             self.tabToRead.push({
                 whoIsWriting: "wattMeter",
                 data: self.tabTerminal[indexRfid].wattMeter.allFrame[index],
@@ -557,6 +565,8 @@ class Server {
             });
             console.log("Tab to read :", self.tabToRead[index].data);
         }
+
+        console.log("LENGTH:", self.tabTerminal[indexRfid].wattMeter.allFrame.length);
     }
 
     //On enleve la trame qui n'est plus nécéssaire
@@ -597,7 +607,7 @@ class Server {
     }
 
     //Va créer la trame pour l'intercace IHM
-    createHimFrame(){
+    createHimFrame() {
 
     }
 

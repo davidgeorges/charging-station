@@ -34,7 +34,7 @@ class Serial {
         this.writeTerminalTimeout = null;
 
         //Flag pour savoir si nous avons reçu les données
-        this.newData = false;
+        this.newData;
 
         //Va
         this.data = null;
@@ -127,46 +127,16 @@ class Serial {
 
     /* Ecriture de données sur le port (async)*/
     async writeData(dataToSend, whosWriting) {
-        //Renvoie une promesse
+        self.newData = false;
         let adr = "";
         return new Promise((resolve, reject) => {
-            switch (whosWriting) {
-                case "rfid":
-                    console.log("From Serial.js [160] : Ecriture RFID ", dataToSend[0])
-                    //console.log("---------------------------------------")
-                    adr = dataToSend[0];
-                    //Timeout a mettre ici ?
-                    self.port.write(dataToSend, (err) => {
-                        if (err) { console.log("From Serial.js [142] : ", err) }
-                    })
-                    break;
-                case "wattMeter":
-                    console.log("From Serial.js [160] : Ecriture Terminal ", dataToSend)
-                    //console.log("---------------------------------------")
-                    adr = dataToSend[0];
-                    //Timeout a mettre ici ?
-                    //console.log("Envoie T",index)
-                    self.port.write(dataToSend, (err => {
-                        if (err) { console.log("From Serial.js [142] : ", err) }
-                    }))
-                    break;
-                case "him":
-                    console.log("From Serial.js [160] : Ecriture HIM ", dataToSend)
-                    // //console.log("---------------------------------------")
-                    // adr = dataToSend[0];
-                    // //Timeout a mettre ici ?
-                    // //console.log("Envoie T",index)
-                    // self.port.write(dataToSend, (err => {
-                    //     if (err) { console.log("From Serial.js [142] : ", err) }
-                    // }))
-                    break;
-                default:
-                    console.log("From Serial.js [157] : Error whosWriting: ")
-                    break;
-            }
-
+            console.log("From Serial.js [142] : Ecriture du module  ", whosWriting, " adr : ", dataToSend[0])
+            adr = dataToSend[0];
+            self.port.write(dataToSend, (err) => {
+                if (err) { console.log("From Serial.js [142] :  ", err) }
+            })
             /* Mise en place d'un timeout pour reject ou resolve la promesse
-               Si on a une erreur lors de la réception des données on reject*/
+            Si on a une erreur lors de la réception des données on reject*/
             setTimeout(() => {
                 if (!self.newData) {
                     reject({
@@ -178,13 +148,9 @@ class Serial {
                         status: "sucess",
                         adr: adr
                     });
-                    self.newData = false;
                 }
             }, 1500)
-
-            //console.log("Apres");
         })
-
     }
 
     /* Conversion en HEXA */

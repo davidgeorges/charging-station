@@ -15,7 +15,8 @@ class Terminal {
         // Adresse de l'instructions MODBUS ( 03 = lire )
         this.listInstructions = [0x03, 0x10];
         // Liste des adresse de commande a éxecuter ( 01 10 = demande ID)
-        this.listCommand = [[0x01, 0x10], [0x01, 0x31], [0x01, 0x39], [0x01, 0x40]];
+        //[0x01, 0x10], 
+        this.listCommand = [[0x01, 0x31], [0x01, 0x39], [0x01, 0x40]];
         // Nombre de mots  a lire  ( 1 ou 2 mots a lire )
         this.listRest = [0x01, 0x02];
 
@@ -49,7 +50,7 @@ class Terminal {
             anyError : false,
             isUsed : false,
             nbRetry : 0,
-            allFrame: [[],[],[],[],],
+            allFrame: [[],[],[],]
         }
 
         this.data = {
@@ -90,7 +91,7 @@ class Terminal {
         var stringHex = ""
         var dataToChange = null;
         /* Creation des trames */
-        for (let index = 0; index < 4; index++) {
+        for (let index = 0; index < 3; index++) {
             /* Pour savoir le nombre de mots a lire (01 ou 02)*/
             if (index >= 2) {
                 indexRest = 1;
