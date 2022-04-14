@@ -27,18 +27,15 @@ class Serial {
         // Données
         this.dataReceive;
 
-        // Données en HEXA
-        this.dataHex = [];
-
         //Interval
         this.writeTerminalTimeout = null;
 
         //Flag pour savoir si nous avons reçu les données
         this.newData;
 
-        //Va
-        this.data = null;
 
+        this.dataPromise;
+        this.whoIsWriting;
         self = this
 
         //Appel de méthodes pour créer la communication serial
@@ -83,25 +80,7 @@ class Serial {
         self.port.on('open', self.showPortOpen);
         self.port.on('close', self.showPortClose);
         self.port.on('error', self.showError);
-        self.port.on('data', (dataR) => {
-
-
-            console.log("From Serial.js [92 ] : Données reçu.", dataR)
-            console.log("---------------------------------------")
-
-            /* On récupère les données reçu */
-            self.dataReceive = dataR;
-
-            /* Conversion en hexa */
-            self.converTabToHex(self.dataReceive);
-
-            /* Conditions pour conmparer les octets */
-            self.instructToDo();
-
-            self.newData = true;
-            clearTimeout(this.writeTerminalTimeout)
-
-        });
+        self.port.on('data', self.onData);
 
     }
 
@@ -125,15 +104,28 @@ class Serial {
 
     }
 
+    onData(dataR) {
+        console.log("From Serial.js [92 ] : Données reçu.", dataR)
+        /* On récupère les données reçu */
+        self.dataReceive = dataR;
+
+        /* Conditions pour conmparer les octets */
+        self.instructToDo();
+
+        self.newData = true;
+        clearTimeout(this.writeTerminalTimeout)
+    }
+
     /* Ecriture de données sur le port (async)*/
-    async writeData(dataToSend, whosWriting) {
+    async writeData(dataToSend, whosWritingR) {
         self.newData = false;
         let adr = "";
+        self.whoIsWriting = whosWritingR
         return new Promise((resolve, reject) => {
-            console.log("From Serial.js [142] : Ecriture du module  ", whosWriting, " adr : ", dataToSend[0])
+            console.log("From Serial.js [137] : Ecriture du module",self.whoIsWriting, " adr : ", dataToSend[0])
             adr = dataToSend[0];
             self.port.write(dataToSend, (err) => {
-                if (err) { console.log("From Serial.js [142] :  ", err) }
+                if (err) { console.log("From Serial.js [140] :  ", err) }
             })
             /* Mise en place d'un timeout pour reject ou resolve la promesse
             Si on a une erreur lors de la réception des données on reject*/
@@ -146,55 +138,48 @@ class Serial {
                 } else {
                     resolve({
                         status: "sucess",
-                        adr: adr
+                        adr: adr,
+                        data: self.dataPromise,
                     });
                 }
             }, 1500)
         })
     }
 
-    /* Conversion en HEXA */
-    converTabToHex(tabToConvert) {
-        self.dataHex = [];
-        tabToConvert.forEach(element => {
-
-            self.dataHex.push(element.toString(16))
-        });
-        console.log("From Serial.js : Conversion en HEXA effectuer.");
-        console.log("---------------------------------------")
-    }
-
     /* A venir ... (lecture des mots a lire ) */
     instructToDo() {
-        var dataDest = " ";
-        var keyCode = " ";
-        switch (self.dataHex[2]) {
+
+        
+        self.dataPromise = "";
+        //Variable pour vérifier si  i
+        //On créer et stock le nombre de bits de donneés
+        var nbDataBits = self.dataReceive[2];
+        var stringHex = "";
+        //On le converti en entier
+        nbDataBits = parseInt(nbDataBits);
+        switch (self.whoIsWriting) {
             //Lecture 8 mot = RFID
-            case "8":
-                console.log("From Serial.js [183] : RFID data receive.")
-                console.log("---------------------------------------")
+            case "rfid":
                 //console.log(self.dataHex)
-                keyCode = self.convertRfidDataToString(self.dataHex)
-                dataDest = "rfid";
+                self.dataPromise = self.convertRfidDataToString(self.dataReceive)
                 break;
-            case "3":
+            case "wattMeter":
+                //On récupère tout les bits de donneés
+                for (let index = 3; index < 3 + nbDataBits; index++) {
+                    //On concat les bits qui sont convertis en HEXA
+                    
+                    self.dataPromise += self.dataReceive[index].toString(16);
+                }
+                //Conversion
+                //self.dataPromise = parseInt(self.dataPromise, 16)
+                console.log("---------------------------------------")
+                break;
+            case "him":
+                console.log("From Serial.js [189] : him data receive.")
+                console.log("---------------------------------------")
                 break;
             default:
                 console.log("erreur");
-                dataDest = "err";
-                break;
-        }
-
-        switch (dataDest) {
-            case "rfid":
-                self.data = {
-                    room: "rfid",
-                    data: self.dataHex,
-                    adr: "0x0" + self.dataHex[0],
-                    keyCode: keyCode
-                }
-                break;
-            default:
                 break;
         }
     }
@@ -204,13 +189,8 @@ class Serial {
     convertRfidDataToString(str1) {
         // Converion en String , récupération des données nécéssaires , et suppressin des virgules */
         var hex = str1.toString();
-        hex = hex.substr(6, 23)
-        hex = hex.replaceAll(',', '')
-        var str = '';
-        for (var n = 0; n < hex.length; n += 2) {
-            str += String.fromCharCode(parseInt(hex.substr(n, 2), 16));
-        }
-        return str;
+        hex = hex.substr(3, 8)
+        return hex;
     }
 
 

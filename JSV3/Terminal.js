@@ -26,18 +26,18 @@ class Terminal {
         // Lecteur rfid
         this.rfid = {
             adr: 0,
-            isUsed : false,
-            anyError : false,
-            nbRetry : 0,
+            isUsed: false,
+            anyError: false,
+            nbRetry: 0,
             frame: [],
         }
 
         // Interface
         this.him = {
             adr: 0,
-            isUsed : false,
-            anyError : false,
-            nbRetry : 0,
+            isUsed: false,
+            anyError: false,
+            nbRetry: 0,
             frame: [],
         }
 
@@ -45,12 +45,12 @@ class Terminal {
         this.wattMeter = {
             adr: addressR,
             voltage: 0,
-            rVoltage: 0,
-            acPower: 0,
-            anyError : false,
-            isUsed : false,
-            nbRetry : 0,
-            allFrame: [[],[],[],]
+            ampere: 0,
+            power: 0,
+            anyError: false,
+            isUsed: false,
+            nbRetry: 0,
+            allFrame: [[], [], [],]
         }
 
         this.data = {
@@ -64,13 +64,11 @@ class Terminal {
 
 
         this.nbRetry = 0,
-        this.isUsed = false;
-
-        self = this;
+            self = this;
 
         /* Appel méthode */
         this.createTerminal()
-        
+
 
     }
 
@@ -141,21 +139,20 @@ class Terminal {
             }
             //console.log("Test ",self.wattMeter.allFrame[index])
         }
-        self.createFrameRfid();
+        self.createRfidFrame();
+        self.createHimFrame();
     }
 
     /* Calcul du crc et insertion dans le tableau */
-    createFrameRfid() {
-        var stringHex = "";
+    createRfidFrame() {
+
         var adr = self.wattMeter.adr
-        adr = parseInt(adr,16)-20
-        if (adr.length == 2) {
-            stringHex = "0x";
-        } else {
-            stringHex = "0x0";
-        }
+        adr = parseInt(adr, 16) - 20
+        adr = adr.toString(16);
+        var stringHex = self.crc16.determineString(adr)
         self.rfid.frame.push([
-            stringHex + (adr.toString()), "0x03",
+            stringHex + (adr.toString()),
+            "0x03",
             "0x00",
             "0x00",
             "0x00",
@@ -170,6 +167,46 @@ class Terminal {
         }
         self.rfid.adr = self.rfid.frame[0][0]
         //console.log("Ici ",self.rfid.frame[0])
+    }
+
+    createHimFrame() {
+        var adr = self.wattMeter.adr
+        adr = parseInt(adr, 16) - 10
+        adr = adr.toString(16);
+        var stringHex = self.crc16.determineString(adr)
+        self.him.frame.push([
+            stringHex + (adr.toString()),
+            //Adr fonction lire n mots
+            "0x10",
+            //Nombre d'octets total
+            "0x0C",
+            //Intensité
+            "0x00",
+            "0x00",
+            //Consigne courant
+            "0x00",
+            "0x00",
+            //Puissance
+            "0x00",
+            "0x00",
+            "0x00",
+            "0x00",
+            //Tension
+            "0x00",
+            "0x00",
+            //Durée
+            "0x00",
+            "0x00",
+            //Etat borne
+            "0x00",
+            "0x00",
+            //Crc
+            "0xFF",
+            "0xFF",
+
+        ]);
+
+        self.him.adr = self.him.frame[0][0]
     }
 
     resetD() {
