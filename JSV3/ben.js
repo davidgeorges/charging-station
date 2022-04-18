@@ -143,3 +143,62 @@ switch (valueR.status) {
     default:
         break;
 }
+
+
+self.him.frame.push([
+    stringHex + (adr.toString()),
+    //Adr fonction lire n mots
+    "0x10",
+    //Nombre d'octets total
+    "0x0C",
+    //Intensité
+    "0x00",
+    "0x00",
+    //Consigne courant
+    "0x00",
+    "0x00",
+    //Puissance
+    "0x00",
+    "0x00",
+    "0x00",
+    "0x00",
+    //Tension
+    "0x00",
+    "0x00",
+    //Durée
+    "0x00",
+    "0x00",
+    //Etat borne
+    "0x00",
+    "0x00",
+    //Crc
+    "0xFF",
+    "0xFF",
+
+]);
+
+
+self.him.frame.push([
+    stringHex + (adr.toString()),
+    //Adr fonction lire n mots
+    "0x10",
+    // ?
+    "0x00",
+    //Nombre d'octets total
+    "0x0C",
+    //Intensité
+    "0x00,0x00",
+    //Consigne courant
+    "0x00,0x00",
+    //Puissance
+    "0x00,0x00,0x00,0x00,",
+    //Tension
+    "0x00,0x00",
+    //Durée
+    "0x00,0x00",
+    //Etat borne
+    "0x00,0x00",
+    //Crc
+    "0xFF,0xFF",
+
+]);

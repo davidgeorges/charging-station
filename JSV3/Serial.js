@@ -187,7 +187,7 @@ class Serial {
 
     /* Conversion des données de la carte RFID reçu */
     convertRfidDataToString(str1) {
-        // Converion en String , récupération des données nécéssaires , et suppressin des virgules */
+        // Converion en String , récupération des données nécéssaires , et suppression des virgules */
         var hex = str1.toString();
         hex = hex.substr(3, 8)
         return hex;

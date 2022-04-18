@@ -265,13 +265,10 @@ class Server {
                         }
                     }, 100)
                 });
-
-
             } else {
                 console.log("From Serial.js [ 216 ] : RFID Already used !");
                 console.log("---------------------------------------")
             }
-
         })
     }
 
@@ -307,7 +304,6 @@ class Server {
                             if (copyTabTerminal > 0) {
                                 copyTabTerminal.nbRetry = 0;
                             }
-
                         }).catch((e) => {
                             //console.log("From Serv.js [317] : Error timeout");
                             dataR = e
@@ -315,7 +311,6 @@ class Server {
                             if (copyTabTerminal.nbRetry >= 2) {
                                 dataR.status = "brokenDown";
                             }
-
                             switch (dataR.status) {
                                 case "error":
                                     console.log("Timeout")
@@ -339,9 +334,7 @@ class Server {
                                 default:
                                     break;
                             }
-
                         })
-
                     if (dataR.status == "sucess") {
                         switch (self.tabToRead[index].whoIsWriting) {
                             case "rfid":
@@ -357,7 +350,7 @@ class Server {
                                 self.wattMeterProcessing(dataR.data, copyTabTerminal, self.tabToRead[index].whatIsWritten)
                                 break;
                             case "him":
-                                self.himProcessing(copyTabTerminal, index, dataR)
+                                self.himProcessing(copyTabTerminal, index2)
                                 break;
                             default:
                                 break;
@@ -636,14 +629,17 @@ class Server {
             case "V":
                 tabR.voltage = value;
                 console.log("VOLT : ", tabR.voltage);
+                console.log("VOLT : ", parseInt(tabR.voltage.substring(2,4)+tabR.voltage.substring(7,9),16) );
                 break;
             case "A":
                 tabR.ampere = value;
                 console.log("AMPERE : ", tabR.ampere);
+                console.log("AMPERE : ", parseInt(tabR.ampere.substring(2,4)+tabR.ampere.substring(7,9),16));
                 break;
             case "kW":
                 tabR.power = value;
-                console.log("POWER : ", tabR.power);
+                console.log("POWER : ",tabR.power);
+                console.log("POWER : ", parseInt(tabR.power, 16));
                 break;
             default:
                 break;
@@ -670,21 +666,34 @@ class Server {
                 break;
         }
         const buf = Buffer.allocUnsafe(nbByte);
-        buf.writeIntBE("0x" + dataR, 0, nbByte);
+        buf.writeIntBE("0x" + dataR, 0, nbByte)
+        let index = 0;
         buf.forEach(element => {
             if (element.toString(16).length == 1) {
                 stringHex = "0x0";
             } else {
                 stringHex = "0x";
             }
-            finalValue += stringHex + element.toString(16) + ","
+            finalValue += stringHex + element.toString(16)
+            
+            if(index != buf.length-1){
+               finalValue += ","
+            }
+            index++;
         });
         return finalValue
     }
 
 
-    himProcessing(tabR) {
-        console.log("Test 702 : ", tabR.him.frame)
+    himProcessing(tabR,indexR) {
+        console.log("Test 702 : ", tabR.frame[0][4])
+        var copyTabTerminal = self.determineWhoIsWriting("wattMeter",indexR);
+        tabR.frame[0][4] = copyTabTerminal.ampere
+        tabR.frame[0][6] = copyTabTerminal.power
+        tabR.frame[0][7] = copyTabTerminal.voltage
+        console.log("Test 703 : ", tabR.frame[0][4])
+        console.log("Test 704 : ", tabR.frame[0][6])
+        console.log("Test 705 : ", tabR.frame[0][7])
     }
 
     //Pour determiner qu'elle est le module qui écrit la trame

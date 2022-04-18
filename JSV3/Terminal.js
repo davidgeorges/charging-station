@@ -44,9 +44,9 @@ class Terminal {
         // ?
         this.wattMeter = {
             adr: addressR,
-            voltage: 0,
-            ampere: 0,
-            power: 0,
+            voltage: "0x00,0x00",
+            ampere: "0x00,0x00",
+            power: "0x00,0x00,0x00,0x00",
             anyError: false,
             isUsed: false,
             nbRetry: 0,
@@ -61,7 +61,6 @@ class Terminal {
         }
 
         /* Temps estimé pour le chargement */
-
 
         this.nbRetry = 0,
             self = this;
@@ -178,32 +177,24 @@ class Terminal {
             stringHex + (adr.toString()),
             //Adr fonction lire n mots
             "0x10",
+            // ?
+            "0x00",
             //Nombre d'octets total
             "0x0C",
             //Intensité
-            "0x00",
-            "0x00",
+            self.wattMeter.ampere,
             //Consigne courant
-            "0x00",
-            "0x00",
+            "0x00,0x00",
             //Puissance
-            "0x00",
-            "0x00",
-            "0x00",
-            "0x00",
+            self.wattMeter.power,
             //Tension
-            "0x00",
-            "0x00",
+            self.wattMeter.voltage,
             //Durée
-            "0x00",
-            "0x00",
+            "0x00,0x00",
             //Etat borne
-            "0x00",
-            "0x00",
+            "0x00,0x00",
             //Crc
-            "0xFF",
-            "0xFF",
-
+            "0xFF,0xFF",
         ]);
 
         self.him.adr = self.him.frame[0][0]
