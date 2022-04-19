@@ -2,6 +2,8 @@
 
 /* Import des modules */
 const Server = require("./Serv");
+const dotenv = require('dotenv').config({ path: "../.env" })
+
 console.log("---------------------------------------")
 
 /* Instanciation */
@@ -13,7 +15,7 @@ server.createHttpServer();
 server.createHttpConnection(() => {
     server.manageSocket();
     //172.26.10.30
-    server.db.createConnection("localhost", "root", "root", (stringR) => {
+    server.db.createConnection(process.env.dbName,process.env.dbLogin,process.env.dbPassword, (stringR) => {
         /*if (stringR.length == 0) {
             server.createAllTerminal(2)
             server.createEmitInteval();

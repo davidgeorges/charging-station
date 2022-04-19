@@ -301,7 +301,7 @@ class Server {
                             //console.log("From Serv.js [314] : Sucess write");
                             dataR = e
                             //Si on a deja eu des erreurs mais que le module communique actuellement
-                            if (copyTabTerminal > 0) {
+                            if (copyTabTerminal.nbRetry > 0) {
                                 copyTabTerminal.nbRetry = 0;
                             }
                         }).catch((e) => {
@@ -356,7 +356,6 @@ class Server {
                                 break;
                         }
                     }
-
                     console.log("---------------------------------------")
                 } else {
                     console.log("From Serv.js [311] : Error not writing.")
@@ -516,8 +515,6 @@ class Server {
             data: self.tabTerminal[indexRfid].him.frame[0],
             adr: self.tabTerminal[indexRfid].him.adr,
         });
-        console.log("Tab to read :", self.tabToRead);
-
         //console.log("LENGTH:", self.tabTerminal[indexRfid].wattMeter.allFrame.length);
     }
 
@@ -628,18 +625,18 @@ class Server {
         switch (whatIsWrittenR) {
             case "V":
                 tabR.voltage = value;
-                console.log("VOLT : ", tabR.voltage);
+                console.log("VOLT : ", parseInt(tabR.voltage.substring(2,4)+tabR.voltage.substring(7,9),16)/100,"V");
                 console.log("VOLT : ", parseInt(tabR.voltage.substring(2,4)+tabR.voltage.substring(7,9),16) );
                 break;
             case "A":
                 tabR.ampere = value;
-                console.log("AMPERE : ", tabR.ampere);
+                console.log("AMPERE : ", parseInt(tabR.ampere.substring(2,4)+tabR.ampere.substring(7,9),16)/1000,"A");
                 console.log("AMPERE : ", parseInt(tabR.ampere.substring(2,4)+tabR.ampere.substring(7,9),16));
                 break;
             case "kW":
                 tabR.power = value;
-                console.log("POWER : ",tabR.power);
-                console.log("POWER : ", parseInt(tabR.power, 16));
+                console.log("POWER : ",parseInt(tabR.power.substring(2,4)+tabR.power.substring(7,9)+tabR.power.substring(12,14)+tabR.power.substring(17,19), 16)/1000,"kW");
+                console.log("POWER : ", parseInt(tabR.power.substring(2,4)+tabR.power.substring(7,9)+tabR.power.substring(12,14)+tabR.power.substring(17,19), 16) );
                 break;
             default:
                 break;

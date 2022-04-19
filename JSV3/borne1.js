@@ -12,6 +12,7 @@ const port = new SerialPort("COM12", {
 var dataReceive = [];
 var dataHex = [];
 
+var val1;
 var val2;
 
 
@@ -21,38 +22,46 @@ var val2;
 
 console.log("borne1.js")
 
+//Math.round(0.9)
 
-var volt = getRandomArbitrary(22220,23000)
-var ampere = getRandomArbitrary(22220,23000)
-var kw = getRandomArbitrary(22220,23000)
 /*
 yourNumber = Math.round(yourNumber)
 console.log("New Val 1 --> ",yourNumber)
 var hexString = yourNumber.toString(16)
 console.log("New Val 2 ",val2," --> ",hexString)
 */
+
 // Read the data from the serial port
 port.on("data", (line) => {
     dataReceive = line;
     converTabToHex();
     if (dataHex[0] == "15") {
-        changeVal();
+        var randomVal = 0;
         switch (dataHex[3]) {
             case '31':
-                console.log("VOLT");
-                port.write([0x15, 0x03, 0x02, 0x58, val2, 0xB1, 0xC3]); //227,68 V
+                randomVal = Math.round(getRandomArbitrary(22220,23000));
+                console.log("VOLT --> ",randomVal);
+                change(randomVal.toString(16))
+                port.write([0x15, 0x03, 0x02, val1, val2, 0xB1, 0xC3]); //227,68 V
                 console.log(dataHex[3]);
                 break;
             case '39':
-                port.write([0x15, 0x03, 0x04, 0x00, 0x00, 0x5E, val2, 0x67, 0xE6]); //7,857 A
+                randomVal = Math.round(getRandomArbitrary(2000,7800));
+                console.log("CURRENT --> ",randomVal);
+                change(randomVal.toString(16))
+                port.write([0x15, 0x03, 0x04, 0x00, 0x00, val1, val2, 0x67, 0xE6]); //7,857 A
                 console.log(dataHex[3]);
-                console.log("CURRENT");
+              
                 break;
             case '40':
-                port.write([0x15, 0x03, 0x04, 0x00, 0x00, 0x05, val2, 0x2D, 0xDB]);//1,762 kW
-                console.log("ACTIVE POWER");
+                randomVal = Math.round(getRandomArbitrary(300,7000))
+                console.log("ACTIVE POWER --> ",randomVal);
+                change(randomVal.toString(16))
+                port.write([0x15, 0x03, 0x04, 0x00, 0x00, val1, val2, 0x2D, 0xDB]);//1,762 kW
                 console.log(dataHex[3]);
-                console.clear();
+                setTimeout(()=>{
+                    console.clear();
+                },700)
                 break;
             default:
                 break;
@@ -62,10 +71,10 @@ port.on("data", (line) => {
     if (dataHex[0] == "b") {
         console.log("IHM WRITED");
         port.write([0x0b, 0x03, 0x02, 0x00, 0x01, 0x2D, 0xDB]);
-        console.log("Test 1 : ", dataHex[1])
-        console.log("Test 2 : ", dataHex[2])
-        console.log("Test 3 : ", dataHex[3])
-        console.log("Test 4 : ", dataHex[4])
+        //console.log("Test 1 : ", dataHex[1])
+        //console.log("Test 2 : ", dataHex[2])
+        //console.log("Test 3 : ", dataHex[3])
+        //console.log("Test 4 : ", dataHex[4])
     }
     dataHex = []
 });
@@ -86,19 +95,19 @@ function getRandomArbitrary(min, max) {
     return Math.random() * (max - min) + min;
   }
 
-function changeVal() {
-    var yourNumber = getRandomArbitrary(22220,23000)
-    console.log("New Val 1 --> ",yourNumber)
-    var hexString = yourNumber.toString(16)
-    switch (hexString.length) {
-        case 2:
-            val2 = "0x" + hexString
+function change(dataR) {
+    console.log("Base",dataR)
+    switch (dataR.length) {
+        case 4:
+            val1 = "0x" + dataR.substring(0,2)
+            val2 = "0x" + dataR.substring(2)
             break;
-        case 1:
-            val2 = "0x0" + hexString;
+        case 3:
+            val1 = "0x0" + dataR.substring(0,1)
+            val2 = "0x" + dataR.substring(1)
             break;
         default:
             break;
     }
-    console.log("New Val 2 ",val2," --> ",parseInt(hexString,16))
+    console.log("Changed : --> ",val1,"et ",val2)
 }
