@@ -63,7 +63,7 @@ class Terminal {
         /* Temps estimé pour le chargement */
 
         this.nbRetry = 0,
-            self = this;
+        self = this;
 
         /* Appel méthode */
         this.createTerminal()

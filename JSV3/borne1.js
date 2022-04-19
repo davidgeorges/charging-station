@@ -22,14 +22,6 @@ var val2;
 
 console.log("borne1.js")
 
-//Math.round(0.9)
-
-/*
-yourNumber = Math.round(yourNumber)
-console.log("New Val 1 --> ",yourNumber)
-var hexString = yourNumber.toString(16)
-console.log("New Val 2 ",val2," --> ",hexString)
-*/
 
 // Read the data from the serial port
 port.on("data", (line) => {
@@ -54,7 +46,7 @@ port.on("data", (line) => {
               
                 break;
             case '40':
-                randomVal = Math.round(getRandomArbitrary(300,7000))
+                randomVal = Math.round(getRandomArbitrary(2500,7000))
                 console.log("ACTIVE POWER --> ",randomVal);
                 change(randomVal.toString(16))
                 port.write([0x15, 0x03, 0x04, 0x00, 0x00, val1, val2, 0x2D, 0xDB]);//1,762 kW

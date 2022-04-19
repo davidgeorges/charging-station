@@ -118,16 +118,16 @@ class Server {
                         self.sendFile(res, 'text/html', 'utf-8', '../CSS/car.css')
                         break
                     case "/assets/dist/css/bootstrap.min.css":
-                        self.sendFile(res, 'text/html', 'utf-8', "../assets/dist/css/bootstrap.min.css")
+                        self.sendFile(res, 'text/html', 'utf-8', "../../assets/dist/css/bootstrap.min.css")
                         break
                     case "/assets/dist/css/bootstrap.min.css.map":
-                        self.sendFile(res, 'text/html', 'utf-8', "../assets/dist/css/bootstrap.min.css.map")
+                        self.sendFile(res, 'text/html', 'utf-8', "../../assets/dist/css/bootstrap.min.css.map")
                         break
                     case "/assets/dist/js/bootstrap.bundle.min.js":
-                        self.sendFile(res, 'text/html', 'utf-8', "../assets/dist/js/bootstrap.bundle.min.js")
+                        self.sendFile(res, 'text/html', 'utf-8', "../../assets/dist/js/bootstrap.bundle.min.js")
                         break
                     case "/assets/dist/js/bootstrap.bundle.min.js.map":
-                        self.sendFile(res, 'text/html', 'utf-8', "../assets/dist/js/bootstrap.bundle.min.js.map")
+                        self.sendFile(res, 'text/html', 'utf-8', "../../assets/dist/js/bootstrap.bundle.min.js.map")
                         break
                     case "/car.png":
                         self.sendFile(res, 'image/jpg', 'Base64', "../IMG/car.png")
@@ -139,10 +139,10 @@ class Server {
                         self.sendFile(res, 'text/html', 'utf-8', "../fontawesome-free-5.15.4-web/js/all.js")
                         break
                     case "/node_modules/socket.io/client-dist/socket.io.js.map":
-                        self.sendFile(res, 'text/javascript', 'utf-8', "../node_modules/socket.io/client-dist/socket.io.js.map")
+                        self.sendFile(res, 'text/javascript', 'utf-8', "../../node_modules/socket.io/client-dist/socket.io.js.map")
                         break
                     case "/node_modules/socket.io/client-dist/socket.io.js":
-                        self.sendFile(res, 'text/javascript', 'utf-8', "../node_modules/socket.io/client-dist/socket.io.js")
+                        self.sendFile(res, 'text/javascript', 'utf-8', "../../node_modules/socket.io/client-dist/socket.io.js")
                         break
                     default:
                         res.writeHead(404);
@@ -691,6 +691,7 @@ class Server {
         console.log("Test 703 : ", tabR.frame[0][4])
         console.log("Test 704 : ", tabR.frame[0][6])
         console.log("Test 705 : ", tabR.frame[0][7])
+        this.io.emit("him",tabR.frame);
     }
 
     //Pour determiner qu'elle est le module qui écrit la trame
