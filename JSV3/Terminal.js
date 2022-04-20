@@ -20,8 +20,8 @@ class Terminal {
         // Nombre de mots  a lire  ( 1 ou 2 mots a lire )
         this.listRest = [0x01, 0x02];
 
-        this.nbKwh = 0;
-        this.timeP = 0;
+        this.nbKwh = 0; // kW demandé par l'utilisateur
+        this.timeP = 0; // Temps max possible en charge
 
         // Lecteur rfid
         this.rfid = {
@@ -54,14 +54,13 @@ class Terminal {
         }
 
         this.data = {
-            kwh: 0,
-            kwhGive: 0,
-            timeP: 0,
-            prio: 0,
+            kwhLeft: 0, // (kW Restant a charger ) kW fourni - kW a charger
+            kwhGive: 0, //kW fourni pour la charge
+            timeLeft: 0, // (Temps restant possible en charge) temps écouler - temps de présence
+            prio: 0, // Coefficient  de priorité
         }
 
         /* Temps estimé pour le chargement */
-
         this.nbRetry = 0,
         self = this;
 

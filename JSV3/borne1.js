@@ -46,7 +46,7 @@ port.on("data", (line) => {
               
                 break;
             case '40':
-                randomVal = Math.round(getRandomArbitrary(2500,7000))
+                randomVal = 3500
                 console.log("ACTIVE POWER --> ",randomVal);
                 change(randomVal.toString(16))
                 port.write([0x15, 0x03, 0x04, 0x00, 0x00, val1, val2, 0x2D, 0xDB]);//1,762 kW

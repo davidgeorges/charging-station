@@ -1,7 +1,3 @@
-const { stat } = require('fs');
-const { exit, off } = require('process');
-
-
 let self = null;
 
 /* Implementation ... */
@@ -67,6 +63,8 @@ class Server {
         this.canEmit = true;
         //Va contenir l'interval sur la méthode emit()
         this.intervalEmitRfid = null;
+
+        this.tabInterval = [];
 
         //Pour 
         self = this;
@@ -238,9 +236,10 @@ class Server {
                             //On Cherche l'index de l'adresse RFID correspondant à celui dans le tableau de bornes
                             let index = self.findIndex("rfid", valueR.adr)
                             /* Modifications des valeurs */
-                            self.tabTerminal[index].data.kwh = dataR.data[0].nbKwh;
-                            self.tabTerminal[index].data.timeP = dataR.data[0].timeP;
-                            self.tabTerminal[index].data.kwhGive = 0;
+                            self.tabTerminal[index].nbkwh = dataR.data[0].nbKwh;
+                            self.tabTerminal[index].timeP = dataR.data[0].timeP;
+                            self.tabTerminal[index].data.timeLeft = dataR.data[0].timeP * 60;
+                            self.tabTerminal[index].data.kwhLeft = dataR.data[0].nbKwh;
                             self.tabTerminal[index].rfid.isUsed = true;
                             //On Calcule le coefficient de prioritées et envoie de données
                             self.calcPrio(self.nbBorneUsed - 1, () => {
@@ -625,23 +624,69 @@ class Server {
         switch (whatIsWrittenR) {
             case "V":
                 tabR.voltage = value;
-                console.log("VOLT : ", parseInt(tabR.voltage.substring(2,4)+tabR.voltage.substring(7,9),16)/100,"V");
-                console.log("VOLT : ", parseInt(tabR.voltage.substring(2,4)+tabR.voltage.substring(7,9),16) );
+                console.log("VOLT : ", parseInt(tabR.voltage.substring(2, 4) + tabR.voltage.substring(7, 9), 16) / 100, "V");
+                console.log("VOLT : ", parseInt(tabR.voltage.substring(2, 4) + tabR.voltage.substring(7, 9), 16));
                 break;
             case "A":
                 tabR.ampere = value;
-                console.log("AMPERE : ", parseInt(tabR.ampere.substring(2,4)+tabR.ampere.substring(7,9),16)/1000,"A");
-                console.log("AMPERE : ", parseInt(tabR.ampere.substring(2,4)+tabR.ampere.substring(7,9),16));
+                console.log("AMPERE : ", parseInt(tabR.ampere.substring(2, 4) + tabR.ampere.substring(7, 9), 16) / 1000, "A");
+                console.log("AMPERE : ", parseInt(tabR.ampere.substring(2, 4) + tabR.ampere.substring(7, 9), 16));
                 break;
             case "kW":
                 tabR.power = value;
-                console.log("POWER : ",parseInt(tabR.power.substring(2,4)+tabR.power.substring(7,9)+tabR.power.substring(12,14)+tabR.power.substring(17,19), 16)/1000,"kW");
-                console.log("POWER : ", parseInt(tabR.power.substring(2,4)+tabR.power.substring(7,9)+tabR.power.substring(12,14)+tabR.power.substring(17,19), 16) );
+                console.log("POWER : ", parseInt(tabR.power.substring(2, 4) + tabR.power.substring(7, 9) + tabR.power.substring(12, 14) + tabR.power.substring(17, 19), 16) / 1000, "kW");
+                console.log("POWER : ", parseInt(tabR.power.substring(2, 4) + tabR.power.substring(7, 9) + tabR.power.substring(12, 14) + tabR.power.substring(17, 19), 16));
                 break;
             default:
                 break;
         }
     }
+
+    //Lorsqu'on reçoits des trames de l'ihm
+    himProcessing(tabR, indexR) {
+
+        //On simule les valeurs (kW chargé, restant...)
+
+        //On récupère le mesureur pour récupérer ses valeurs
+        var copyTabTerminal = self.determineWhoIsWriting("wattMeter", indexR);
+
+        //Insertion des valeurs dans la trame IHM
+        tabR.frame[0][4] = copyTabTerminal.ampere
+        tabR.frame[0][6] = copyTabTerminal.power
+        tabR.frame[0][7] = copyTabTerminal.voltage
+
+        console.log("Test 703 : ", tabR.frame[0][4])
+        console.log("Test 704 : ", tabR.frame[0][6])
+        console.log("Test 705 : ", tabR.frame[0][7])
+
+        var powerValue = parseInt(copyTabTerminal.power.substring(2, 4) + copyTabTerminal.power.substring(7, 9) + copyTabTerminal.power.substring(12, 14) + copyTabTerminal.power.substring(17, 19), 16) / 1000;
+
+
+        self.simulateCharge(powerValue,indexR)
+       
+    }
+
+    //Pour determiner qu'elle est le module qui écrit la trame
+    determineWhoIsWriting(whoIsWritingR, indexR) {
+        var copyTabTerminal;
+        switch (whoIsWritingR) {
+            case "rfid":
+                copyTabTerminal = self.tabTerminal[indexR].rfid;
+                break;
+            case "wattMeter":
+                copyTabTerminal = self.tabTerminal[indexR].wattMeter;
+                break;
+            case "him":
+                copyTabTerminal = self.tabTerminal[indexR].him;
+                break;
+            case "obj":
+                copyTabTerminal = self.tabTerminal[indexR];
+                break;
+            default:
+                break;
+        }
+        return copyTabTerminal
+    };
 
     convertIntoHexa(dataR, whatIsWrittenR) {
         var finalValue = "";
@@ -672,46 +717,33 @@ class Server {
                 stringHex = "0x";
             }
             finalValue += stringHex + element.toString(16)
-            
-            if(index != buf.length-1){
-               finalValue += ","
+
+            if (index != buf.length - 1) {
+                finalValue += ","
             }
             index++;
         });
         return finalValue
     }
 
+    simulateCharge(kwhUsedR,indexR) {
 
-    himProcessing(tabR,indexR) {
-        console.log("Test 702 : ", tabR.frame[0][4])
-        var copyTabTerminal = self.determineWhoIsWriting("wattMeter",indexR);
-        tabR.frame[0][4] = copyTabTerminal.ampere
-        tabR.frame[0][6] = copyTabTerminal.power
-        tabR.frame[0][7] = copyTabTerminal.voltage
-        console.log("Test 703 : ", tabR.frame[0][4])
-        console.log("Test 704 : ", tabR.frame[0][6])
-        console.log("Test 705 : ", tabR.frame[0][7])
-        this.io.emit("him",tabR.frame);
-    }
-
-    //Pour determiner qu'elle est le module qui écrit la trame
-    determineWhoIsWriting(whoIsWritingR, indexR) {
-        var copyTabTerminal;
-        switch (whoIsWritingR) {
-            case "rfid":
-                copyTabTerminal = self.tabTerminal[indexR].rfid;
-                break;
-            case "wattMeter":
-                copyTabTerminal = self.tabTerminal[indexR].wattMeter;
-                break;
-            case "him":
-                copyTabTerminal = self.tabTerminal[indexR].him;
-                break;
-            default:
-                break;
+        //On récupère tout l'objet
+        var copyTabTerminal = self.determineWhoIsWriting("obj", indexR);
+        console.log("TD",copyTabTerminal.data)
+        copyTabTerminal.data.kwhLeft = (copyTabTerminal.data.kwhLeft - (kwhUsedR / 3600)).toFixed(3)
+        copyTabTerminal.data.timeLeft = Math.round(((copyTabTerminal.data.timeLeft -  0.10) + Number.EPSILON)*100)/100
+     
+        var dataSend = {
+            adr : copyTabTerminal.wattMeter.adr,
+            kwhUsed : kwhUsedR,
+            kwhRemaining : copyTabTerminal.data.kwhLeft,
+            timeRemaining : copyTabTerminal.data.timeLeft,
+            //Math.round(((copyTabTerminal.data.timeLeft - copyTabTerminal.timeP) * 60 + Number.EPSILON) * 100) / 100
         }
-        return copyTabTerminal
-    };
+        this.io.emit("newData", dataSend);
+
+    }
 }
 
 /* Export du module */

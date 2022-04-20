@@ -6,14 +6,14 @@ let adrTerminal2 = document.getElementById("adrTerminal2");
 let adrTerminal3 = document.getElementById("adrTerminal3");
 
 // Element pour les kw fourni pour utilisation
-let kwToUse1 = document.getElementById("kWUsed1");
-let kwToUse2 = document.getElementById("kWUsed2");
-let kwToUse3 = document.getElementById("kWUsed3");
+let kwToUse1 = document.getElementById("kwUsed1");
+let kwToUse2 = document.getElementById("kwUsed2");
+let kwToUse3 = document.getElementById("kwUsed3");
 
 // Element pour les kw  restant à charger
-let kwRemaining1 = document.getElementById("kWRemaining1");
-let kwRemaining2 = document.getElementById("kWRemaining2");
-let kwRemaining3 = document.getElementById("kWRemaining3");
+let kwRemaining1 = document.getElementById("kwRemaining1");
+let kwRemaining2 = document.getElementById("kwRemaining2");
+let kwRemaining3 = document.getElementById("kwRemaining3");
 
 // Element pour l'estimation de charge
 let estimationTime1 = document.getElementById("estimationTime1");
@@ -69,36 +69,37 @@ socket.on("changeTerminalUsed", (dataR) => {
 })
 
 
-function changeB(dataR) {
-   console.log("Iid : ", dataR.kwhGive);
-   switch (dataR.adrT) {
+socket.on("newData",(dataR)=>{
+   changeB(dataR);
+})
 
+
+function changeB(dataR) {
+   console.log("Val : ", dataR);
+   switch (dataR.adr) {
       case '0x15':
-         adrTerminal1.innerHTML = dataR.adrT
+         adrTerminal1.innerHTML = dataR.adr
          statusTerminal1.innerHTML = "charging...";
-         kwRemaining1.innerHTML = dataR.kwh
-         kwToUse1.innerHTML = dataR.kwhGive
-         estimationTime1.innerHTML = Math.round(((dataR.kwh / dataR.kwhGive) * 60 + Number.EPSILON) * 100) / 100
+         kwRemaining1.innerHTML = dataR.kwhRemaining
+         kwToUse1.innerHTML = dataR.kwhUsed
+         estimationTime1.innerHTML = dataR.timeRemaining
          break;
       case '0x16':
-         adrTerminal2.innerHTML = dataR.adrT
+         adrTerminal2.innerHTML = dataR.adr
          statusTerminal2.innerHTML = "charging...";
-         kwRemaining2.innerHTML = dataR.kwh
-         kwToUse2.innerHTML = dataR.kwhGive
-         estimationTime2.innerHTML = Math.round(((dataR.kwh / dataR.kwhGive) * 60 + Number.EPSILON) * 100) / 100
+         kwRemaining2.innerHTML = dataR.kwhRemaining
+         kwToUse2.innerHTML = dataR.kwhUsed
+         estimationTime2.innerHTML =  dataR.timeRemaining
          break;
       case '0x17':
          statusTerminal3.innerHTML = "charging...";
-         kwRemaining3.innerHTML = dataR.kwh
+         kwRemaining3.innerHTML = dataR.kwhRemaining
          kwToUse3.innerHTML = dataR.kwhGive
-         estimationTime3.innerHTML = Math.round(((dataR.kwh / dataR.kwhGive) * 60 + Number.EPSILON) * 100) / 100
+         estimationTime3.innerHTML = dataR.timeRemaining
          break;
-
       default:
          break;
    }
-
-
 }
 
 
