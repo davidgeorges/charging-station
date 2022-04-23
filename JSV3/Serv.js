@@ -742,7 +742,24 @@ class Server {
         return finalValue
     }
 
+    simulateCharge(kwhUsedR, indexR) {
 
+        //On récupère tout l'objet
+        var copyTabTerminal = self.determineWhoIsWriting("obj", indexR);
+        console.log("TD", copyTabTerminal.data)
+        copyTabTerminal.data.kwhLeft = (copyTabTerminal.data.kwhLeft - (kwhUsedR / 3600)).toFixed(3)
+        copyTabTerminal.data.timeLeft = Math.round(((copyTabTerminal.data.timeLeft - 0.10) + Number.EPSILON) * 100) / 100
+
+        var dataSend = {
+            adr: copyTabTerminal.wattMeter.adr,
+            kwhUsed: kwhUsedR,
+            kwhRemaining: copyTabTerminal.data.kwhLeft,
+            timeRemaining: copyTabTerminal.data.timeLeft,
+            //Math.round(((copyTabTerminal.data.timeLeft - copyTabTerminal.timeP) * 60 + Number.EPSILON) * 100) / 100
+        }
+        this.io.emit("newData", dataSend);
+
+    }
 }
 
 /* Export du module */
