@@ -28,7 +28,6 @@ class Terminal {
             anyError: false,
             nbRetry: 0,
             frame: [],
-            frameContactor: [],
         }
 
         // Interface
@@ -65,14 +64,14 @@ class Terminal {
 
         /* Temps estimé pour le chargement */
         this.nbRetry = 0,
-            this.isUsed = false;
+        this.isUsed = false;
         self = this;
 
         /* Appel méthode */
         this.createTerminal()
 
 
-    }
+    
 
     /**
      * Create port communication
