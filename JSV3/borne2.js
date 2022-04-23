@@ -19,7 +19,6 @@ var val2;
 
 
 // Write the data to the serial port port.write(t1);
-
 console.log("borne1.js")
 
 
@@ -61,7 +60,7 @@ port.on("data", (line) => {
     }
 
     if (dataHex[0] == "c") {
-        console.log("IHM WRITED");
+        console.log("IHM WRITED : ");
         port.write([0x0c, 0x03, 0x02, 0x00, 0x01, 0x2D, 0xDB]);
         //console.log("Test 1 : ", dataHex[1])
         //console.log("Test 2 : ", dataHex[2])

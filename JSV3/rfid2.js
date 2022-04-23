@@ -34,7 +34,6 @@ port.on("data", (line) => {
 
 function converTabToHex() {
     dataReceive.forEach(element => {
-        //console.log('Convert ' + element.toString(16));
         dataHex.push(element.toString(16))
     });
     console.log("Converted : ", dataHex[0])
