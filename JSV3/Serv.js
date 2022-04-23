@@ -74,9 +74,9 @@ class Server {
     }
 
     /**
-     * Create http server.
-     * Listen to user request.
-     * Answer to user request
+     * Créer le serveur http
+     * Écoute-les requêtes utilisateur
+     * Réponds aux requêtes utilisateurs
      */
     createHttpServer() {
         /* Si app ne vaut pas null cela veut dire qu'un serveur a déja été crée */
@@ -154,12 +154,12 @@ class Server {
     }
 
     /**
-     * Créer la connexion HTTP.
+     * Créer la connexion HTTP
      * Instanciation du Socket
      * Instanciation du port serial 
      */
     createHttpConnection(callback) {
-        // Lancement du serveur sur le port 8080 
+        //Lancement du serveur sur le port 8080 
         self.app.listen(self.port, () => {
             console.log(`From Serv.js : Mise en place du serveur http://localhost:${self.port}/`);
             console.log("---------------------------------------");
@@ -175,7 +175,7 @@ class Server {
         });
     }
 
-    //Envoie de fichier (AUTO OK)
+    //Envoie des fichier en réponse a la requête utilisateur
     sendFile(res, type, encoding, fichier) {
         self.fs.readFile(`./${fichier}`, encoding, (err, content) => {
             if (err) throw err;
@@ -185,7 +185,7 @@ class Server {
         })
     }
 
-    //On gére la communucation en Socket pour la page WEB
+    //On gére la communucation de Socket pour l'ihm WEB
     manageSocket() {
         self.io.on('connection', function (socket) {
             /* User or ? connection */
@@ -211,7 +211,7 @@ class Server {
         return new Promise((resolve, reject) => {
             var err = false;
             var status = " ";
-            if (self.tabTerminal.some(element => element.rfid.adr == valueR.adr && element.rfid.isUsed == false)) {
+            if (self.tabTerminal.some(element => element.rfid.adr == valueR.adr && element.isUsed == false)) {
                 self.db.readData(valueR.data, (dataR) => {
                     /*Si les données ne valent pas nulles,
                       Le code de la carte existe dans la base de données*/
@@ -231,20 +231,24 @@ class Server {
                         case 1:
                             console.log("From Serv.js [214] : User available in BDD !")
                             console.log("---------------------------------------")
+
                             //On incrémente le nombre de bornes en utilisation
                             self.nbBorneUsed++;
                             //On Cherche l'index de l'adresse RFID correspondant à celui dans le tableau de bornes
                             let index = self.findIndex("rfid", valueR.adr)
+
                             /* Modifications des valeurs */
                             self.tabTerminal[index].nbkwh = dataR.data[0].nbKwh;
                             self.tabTerminal[index].timeP = dataR.data[0].timeP;
                             self.tabTerminal[index].data.timeLeft = dataR.data[0].timeP * 60;
                             self.tabTerminal[index].data.kwhLeft = dataR.data[0].nbKwh;
-                            self.tabTerminal[index].rfid.isUsed = true;
+                            self.tabTerminal[index].isUsed = true;
+
                             //On Calcule le coefficient de prioritées et envoie de données
-                            self.calcPrio(self.nbBorneUsed - 1, () => {
+                            self.calcPrio(() => {
                                 status = "userAvailable";
                             });
+
                             break;
                         default:
                             break;
@@ -271,7 +275,7 @@ class Server {
         })
     }
 
-    //Demande au port communication d'écrire (AUTO OK)
+    //Méthode pour écritire les trames
     async emit() {
         console.log("Appel emit")
         //Va contenir l'index pour le tableau de trame a lire
@@ -290,26 +294,28 @@ class Server {
             for (index = 0; index < self.tabToRead.length; index++) {
                 //On va chercher l'index de l'initiateur de la trame dans le tableau de bornes
                 index2 = self.findIndex(self.tabToRead[index].whoIsWriting, self.tabToRead[index].adr);
-                // On determine qui écrit et on fait une copie de la valeur a modifier
+                // On determine qui écrit et on fait une copie de la valeur a modifier grâce a l'index2 trouver juste avant
                 copyTabTerminal = self.determineWhoIsWriting(self.tabToRead[index].whoIsWriting, index2)
-                //Si on n'a pas d'erreur on peut écrire
+                //Si on n'a pas d'erreur on peut écrire sur
                 if (!copyTabTerminal.anyError) {
                     //On écrit et on attend la résolution de la promesse
                     await self.mySerial.writeData(self.tabToRead[index].data, self.tabToRead[index].whoIsWriting)
+                        //Résolution de la promesse avev sucess
                         .then((e) => {
-                            //console.log("From Serv.js [314] : Sucess write");
                             dataR = e
                             //Si on a deja eu des erreurs mais que le module communique actuellement
                             if (copyTabTerminal.nbRetry > 0) {
                                 copyTabTerminal.nbRetry = 0;
                             }
-                        }).catch((e) => {
-                            //console.log("From Serv.js [317] : Error timeout");
+                        })
+                        //Erreur lors de la promesse
+                        .catch((e) => {
                             dataR = e
-                            //Si l'index du nombre d'essai est supérieur ou égal à 2 on met la borne en panne.
+                            //Si l'index du nombre d'essais est supérieur ou égal à 2 on met la borne en panne.
                             if (copyTabTerminal.nbRetry >= 2) {
                                 dataR.status = "brokenDown";
                             }
+                            //Selon le satus de l'erreur
                             switch (dataR.status) {
                                 case "error":
                                     console.log("Timeout")
@@ -320,20 +326,22 @@ class Server {
                                     copyTabTerminal.anyError = true;
                                     self.emitSetTimeOut(copyTabTerminal)
                                     break;
-                                //La communication a échoué à 3 FOIS,nous enlevons la trame du tableau à lire et l'insérons dans le tableau des erreurs
+                                //La communication a échoué à 3 FOIS, nous enlevons la trame du tableau à lire et l'insérons dans le tableau des erreurs
                                 case "brokenDown":
                                     console.log("Broken")
                                     self.io.emit(self.tabToRead[index].whoIsWriting, {
                                         status: "broken-down",
                                         adr: copyTabTerminal.adr,
                                     })
-                                    //console.log("From Serv.js [305] : terminal broken-down !");
+                                    //Cette méthode permet d'enlever la trame tu tableau à lire et de l'insérer dans le tableau des trames non fonctionnelles
                                     self.fromTabToReadToTabError(index, self.tabToRead[index].whoIsWriting)
                                     break;
                                 default:
                                     break;
                             }
                         })
+
+                    //Si l'écriture s'est bien déroulé
                     if (dataR.status == "sucess") {
                         switch (self.tabToRead[index].whoIsWriting) {
                             case "rfid":
@@ -368,59 +376,63 @@ class Server {
     }
 
     //Selon le nombre de véhicule , on fourni les kW a utilisé (AUTO PAS OK)
-    calculKwh() {
+    calculKwh(tabPrioR) {
 
-        switch (self.nbBorneUsed) {
-            case 1:
-                console.log("From Serv.js [359] : Utilisation de 7kWh"); console.log("---------------------------------------")
-                self.kwhToUse = 7;
-                break;
-            case 2:
-                console.log("From Serv.js [363] : Utilisation [3.5] | [3.5] kWh"); console.log("---------------------------------------")
-                self.kwhToUse = 3.5;
-                break;
-            case 3:
-                console.log("From Serv.js [367] : Utilisation de [2.33] | [2.33] | [2.33] kWh"); console.log("---------------------------------------")
-                self.kwhToUse = 2.33;
-                break;
-            default:
-                console.log("From Serv.js [370] : Erreur calcul kWh !"); console.log("---------------------------------------")
-                break;
+        var tabPrio = tabPrioR;
+
+        //Obj literals (remplace le switch)
+        var getPourcentage = (val) => {
+            var pourcentage = {
+                1: [100],
+                2: [55, 45],
+                3: [38, 34, 28]
+            }
+            return pourcentage[val];
         }
 
-        self.tabTerminal.forEach(element => {
-            element.data.kwhGive = self.kwhToUse;
-        });
+        //On fait appel 
+        var test = getPourcentage(tabPrio.length)
+
+        //Tri croissant du coefficient de priorité
+        tabPrio.sort(function (a, b) { return a.prio - b.prio });
+
+        //Pour chaque element du tableau on chance la valeur des kwh a fournir
+        for (const [indexPrio, elementPrio] of tabPrio.entries()) {
+            for (const elementTerminal of self.tabTerminal) {
+                if (elementPrio.adr == elementTerminal.wattMeter.adr) {
+                    //console.log("On donne : ", elementTerminal.wattMeter.adr, "et : ", elementPrio.adr)
+                    elementTerminal.data.kwhGive = test[indexPrio] * 7 / 100
+                    //console.log("On donne : ", test[indexPrio], "pour : ", elementPrio.prio, " : --> ", elementTerminal.data.kwhGive);
+                }
+            }
+        }
 
     }
 
     //Calcul le coefficient de prioritées selon les données (Présence et kW) (AUTO PAS OK)
-    async calcPrio(nbBorneUsed, callback) {
-        let prio = 0;
-        let index;
-        //Pour chaque borne on calcule la
-        for (index = 0; index <= nbBorneUsed; index++) {
-            switch (index) {
-                case 0:
-                    prio = self.tabTerminal[index].data.timeP / self.tabTerminal[index].data.kwh;
-                    break;
-                case 1:
-                    prio = self.tabTerminal[index].data.timeP / self.tabTerminal[index].data.kwh;
-                    break;
-                case 2:
-                    prio = self.tabTerminal[index].data.timeP / self.tabTerminal[index].data.kwh;
-                    break;
-                default:
-                    break;
+    async calcPrio(callback) {
+
+        var tabPrio = [{
+            adr: "0x16",
+            prio: 22.3,
+            percentKwh: 0
+        }];
+        console.log("Ici 1")
+        self.tabTerminal.forEach(element => {
+            console.log("Ici 2")
+            if (element.isUsed) {
+                element.data.prio = Math.round((element.data.timeLeft / element.data.kwhLeft) * 100) / 100;
+                console.log("Caclul de la prio pour ", element.wattMeter.adr, "rés : ", element.data.prio);
+                tabPrio.push({
+                    adr: element.wattMeter.adr,
+                    prio: element.data.prio,
+                    percentKwh: 0
+                })
             }
-            //Insertion priorité et l'adresse borne
-            self.tabTerminal[index].data.prio = Math.round(prio * 100) / 100;
-        }
-        self.calculKwh();
-        if (self.nbBorneUsed > 1) {
-            console.log("INDEX 394 ", index)
-            //self.resendData(indexR)
-        }
+        });
+
+        self.calculKwh(tabPrio);
+
         callback();
     }
 
@@ -601,6 +613,10 @@ class Server {
                     status: "rfid accepted",
                     adr: copyTabTerminalR.adr,
                 })
+                //On récupère tout l'objet pour pouvoir faire appel a la méthode pour actionner le contacteur
+                var copyTabTerminal = self.determineWhoIsWriting("obj", indexR);
+                copyTabTerminal.switchContactor()
+                //On supprime la trame RFID du tableau
                 self.emitRemoveFromTab(indexR, valueR.adr)
                 promiseValue = 'rifdAccepted'
                 anyError = false;
@@ -662,8 +678,8 @@ class Server {
         var powerValue = parseInt(copyTabTerminal.power.substring(2, 4) + copyTabTerminal.power.substring(7, 9) + copyTabTerminal.power.substring(12, 14) + copyTabTerminal.power.substring(17, 19), 16) / 1000;
 
 
-        self.simulateCharge(powerValue,indexR)
-       
+        self.simulateCharge(powerValue, indexR)
+
     }
 
     //Pour determiner qu'elle est le module qui écrit la trame
@@ -726,19 +742,19 @@ class Server {
         return finalValue
     }
 
-    simulateCharge(kwhUsedR,indexR) {
+    simulateCharge(kwhUsedR, indexR) {
 
         //On récupère tout l'objet
         var copyTabTerminal = self.determineWhoIsWriting("obj", indexR);
-        console.log("TD",copyTabTerminal.data)
+        console.log("TD", copyTabTerminal.data)
         copyTabTerminal.data.kwhLeft = (copyTabTerminal.data.kwhLeft - (kwhUsedR / 3600)).toFixed(3)
-        copyTabTerminal.data.timeLeft = Math.round(((copyTabTerminal.data.timeLeft -  0.10) + Number.EPSILON)*100)/100
-     
+        copyTabTerminal.data.timeLeft = Math.round(((copyTabTerminal.data.timeLeft - 0.10) + Number.EPSILON) * 100) / 100
+
         var dataSend = {
-            adr : copyTabTerminal.wattMeter.adr,
-            kwhUsed : kwhUsedR,
-            kwhRemaining : copyTabTerminal.data.kwhLeft,
-            timeRemaining : copyTabTerminal.data.timeLeft,
+            adr: copyTabTerminal.wattMeter.adr,
+            kwhUsed: kwhUsedR,
+            kwhRemaining: copyTabTerminal.data.kwhLeft,
+            timeRemaining: copyTabTerminal.data.timeLeft,
             //Math.round(((copyTabTerminal.data.timeLeft - copyTabTerminal.timeP) * 60 + Number.EPSILON) * 100) / 100
         }
         this.io.emit("newData", dataSend);
