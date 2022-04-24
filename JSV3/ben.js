@@ -76,129 +76,58 @@ checkRfidCanBeUsed(valueR) {
     self.io.emit("changeTerminalUsed", self.nbBorneUsed)
 }
 
-
-if (self.tabToRead[index].whoIsWriting == "rfid") {
-
-    var t = async () => {
-        await self.rfidProcessing(copyTabTerminal, index, dataR)
-            .then((result) => {
-                console.log("From Serv.js [327] : ", result);
-                index = result;
-            }).catch((error) => {
-                console.log("From Serv.js [329] : ", error);
-                if (error.status == "databaseTimeout") {
-                    console.log("affichage d'une erreur BDD")
-                }
-            })
+wattMeterProcessing(dataR, tabTerminalR, whatIsWrittenR) {
+    var value = self.convertIntoHexa(dataR.toString(16), whatIsWrittenR);
+    switch (whatIsWrittenR) {
+        case "V":
+            console.log("Te : ",value)
+            tabTerminalR.setAmpereValue(value)
+           // console.log("VOLT : ", parseInt(tabTerminalR.wattMeter.voltage[0].substring(2) + tabTerminalR.wattMeter.voltage[1].substring(2), 16) / 100, "V");
+            //console.log("VOLT : ", tabTerminalR.wattMeter.voltage );
+            //console.log("VOLT : ", parseInt(tabTerminalR.wattMeter.voltage[0].substring(2) + tabTerminalR.wattMeter.voltage[1].substring(2), 16));
+            break;
+        case "A":
+            tabTerminalR.wattMeter.ampere[0] = value.substring(0,4);
+            tabTerminalR.wattMeter.ampere[1] = value.substring(5,9);
+            console.log("AMPERE : ", parseInt(tabTerminalR.wattMeter.ampere[0].substring(2) + tabTerminalR.wattMeter.ampere[1] .substring(2), 16) / 1000, "A");
+            console.log("AMPERE : ", tabTerminalR.wattMeter.ampere);
+            //console.log("AMPERE : ", parseInt(tabTerminalR.wattMeter.ampere.substring(2, 4) + tabTerminalR.wattMeter.ampere.substring(7, 9), 16));
+            break;
+        case "kW":
+            tabTerminalR.wattMeter.power[0] = value.substring(0,4);
+            tabTerminalR.wattMeter.power[1] = value.substring(5,9);
+            tabTerminalR.wattMeter.power[2] = value.substring(10,14);
+            tabTerminalR.wattMeter.power[3] = value.substring(15,19);
+            console.log("POWER : ", parseInt(tabTerminalR.wattMeter.power[0].substring(2) + tabTerminalR.wattMeter.power[1].substring(2) + tabTerminalR.wattMeter.power[2].substring(2) + tabTerminalR.wattMeter.power[3].substring(2), 16) / 1000, "kW");
+            console.log("POWER : ", tabTerminalR.wattMeter.power);
+            //console.log("POWER : ", parseInt(tabTerminalR.wattMeter.power.substring(2, 4) + tabTerminalR.wattMeter.power.substring(7, 9) + tabTerminalR.wattMeter.power.substring(12, 14) + tabTerminalR.wattMeter.power.substring(17, 19), 16));
+            break;
+        default:
+            break;
     }
-
-    t();
-
-} else {
-
 }
 
 
-switch (valueR.status) {
-    //La communication a réussi ont enleve 
-    case "sucess":
-
-
-        switch (whoIsWritingR) {
-            case "rfid":
-                copyTabTerminal = self.tabTerminal[index2].rfid;
-                break;
-            case "wattMeter":
-                copyTabTerminal = self.tabTerminal[index2].wattMeter;
-                break;
-            case "him":
-                copyTabTerminal = self.tabTerminal[index2].him;
-                break;
-            default:
-                break;
-        }
-
-        self.wattMeterProcessing(valueR.data, copyTabTerminalR, self.tabToRead[indexR].whatIsWritten)
-
-        break;
-    //La communication a échoué donc on interdit l'écriture du système (IHM,RFID ou MESUREUR)
-    case "error":
-        console.log("From Serv.js [301] : retrying terminal in 5 seconds.!");
-        self.io.emit("rfid", {
-            status: "error rfid",
-            adr: copyTabTerminalR.adr,
-        })
-        copyTabTerminalR.anyError = true;
-        self.emitSetTimeOut(copyTabTerminalR)
-        break;
-    //La communication a échoué à 3 FOIS,nous enlevons la trame du tableau à lire et l'insérons dans le tableau des erreurs
-    case "brokenDown":
-        self.io.emit("rfid", {
-            status: "broken-down terminal",
-            adr: copyTabTerminalR.adr,
-        })
-        console.log("From Serv.js [305] : terminal broken-down !");
-        self.fromTabToReadToTabError(indexR)
-        break;
-    default:
-        break;
+ //Lorsqu'on reçoits des trames du mesureur
+ wattMeterProcessing(dataR, tabTerminalR, whatIsWrittenR) {
+    var value = self.convertIntoHexa(dataR.toString(16), whatIsWrittenR);
+    switch (whatIsWrittenR) {
+        case "V":
+            tabTerminalR.setVoltageValue(value)
+            break;
+        case "A":
+            tabTerminalR.setAmpereValue(value)
+            break;
+        case "kW":
+            tabTerminalR.setPowerValue(value)
+            break;
+        default:
+            break;
+    }
 }
 
-
-self.him.frame.push([
-    stringHex + (adr.toString()),
-    //Adr fonction lire n mots
-    "0x10",
-    //Nombre d'octets total
-    "0x0C",
-    //Intensité
-    "0x00",
-    "0x00",
-    //Consigne courant
-    "0x00",
-    "0x00",
-    //Puissance
-    "0x00",
-    "0x00",
-    "0x00",
-    "0x00",
-    //Tension
-    "0x00",
-    "0x00",
-    //Durée
-    "0x00",
-    "0x00",
-    //Etat borne
-    "0x00",
-    "0x00",
-    //Crc
-    "0xFF",
-    "0xFF",
-
-]);
-
-
-self.him.frame.push([
-    stringHex + (adr.toString()),
-    //Adr fonction lire n mots
-    "0x10",
-    // ?
-    "0x00",
-    //Nombre d'octets total
-    "0x0C",
-    //Intensité
-    "0x00,0x00",
-    //Consigne courant
-    "0x00,0x00",
-    //Puissance
-    "0x00,0x00,0x00,0x00,",
-    //Tension
-    "0x00,0x00",
-    //Durée
-    "0x00,0x00",
-    //Etat borne
-    "0x00,0x00",
-    //Crc
-    "0xFF,0xFF",
-
-]);
+ //Lorsqu'on reçoits des trames de l'ihm
+ himProcessing(tabTerminalR) {
+    //On simule les valeurs (kW chargé, restant...)
+    tabTerminalR.setHimValue();
+}

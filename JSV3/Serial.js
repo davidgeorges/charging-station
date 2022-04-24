@@ -148,7 +148,6 @@ class Serial {
 
     /* A venir ... (lecture des mots a lire ) */
     instructToDo() {
-
         
         self.dataPromise = "";
         //Variable pour vérifier si  i

@@ -22,49 +22,52 @@ class Terminal {
         this.nbKwh = 0; // kW demandé par l'utilisateur
         this.timeP = 0; // Temps max possible en charge
 
-        // Lecteur rfid
-        this.rfid = {
-            adr: 0,
-            anyError: false,
-            nbRetry: 0,
-            frame: [],
+        this.allData = {
+
+            rfid : {
+                adr: 0,
+                anyError: false,
+                nbRetry: 0,
+                frame: [],
+            },
+    
+            // Interface
+            him : {
+                adr: 0,
+                anyError: false,
+                nbRetry: 0,
+                frame: [],
+            },
+    
+            // Mesureur
+            wattMeter : {
+                adr: addressR,
+                voltage: ["0x00", "0x00"],
+                ampere: ["0x00", "0x00"],
+                power: ["0x00", "0x00", "0x00", "0x00"],
+                anyError: false,
+                nbRetry: 0,
+                allFrame: [[], [], [],]
+            },
+    
+            data : {
+                kwhLeft: 0, // (kW Restant a charger ) kW fourni - kW a charger
+                kwhGive: 0, //kW fourni pour la charge
+                timeLeft: 0, // (Temps restant possible en charge) temps écouler - temps de présence
+                prio: 0, // Coefficient  de priorité
+            },
+    
+            contactor : {
+                frame: [],
+            }
+
         }
 
-        // Interface
-        this.him = {
-            adr: 0,
-            anyError: false,
-            nbRetry: 0,
-            frame: [],
-        }
-
-        // Mesureur
-        this.wattMeter = {
-            adr: addressR,
-            voltage: ["0x00", "0x00"],
-            ampere: ["0x00", "0x00"],
-            power: ["0x00", "0x00", "0x00", "0x00"],
-            anyError: false,
-            nbRetry: 0,
-            allFrame: [[], [], [],]
-        }
-
-
-
-        this.data = {
-            kwhLeft: 0, // (kW Restant a charger ) kW fourni - kW a charger
-            kwhGive: 0, //kW fourni pour la charge
-            timeLeft: 0, // (Temps restant possible en charge) temps écouler - temps de présence
-            prio: 0, // Coefficient  de priorité
-        }
-
-        this.contactor = {
-            frame: [],
-        }
-
+        
         /* Temps estimé pour le chargement */
         this.nbRetry = 0,
-            this.isUsed = false;
+        this.isUsed = false;
+
         self = this;
 
         /* Appel méthode */
@@ -100,7 +103,7 @@ class Terminal {
 
                 switch (lengthTab) {
                     case 0:
-                        dataToChange = self.wattMeter.adr;
+                        dataToChange = self.allData.wattMeter.adr;
                         break;
                     case 1:
                         dataToChange = self.listInstructions[0].toString(16);
@@ -127,12 +130,12 @@ class Terminal {
                 }
 
                 if (stringHex != "Err") {
-                    self.wattMeter.allFrame[index].push(stringHex + dataToChange);
+                    self.allData.wattMeter.allFrame[index].push(stringHex + dataToChange);
                 }
 
             }
             //Calcul et ajout du crc dans la trame
-            self.manageAndAddCrc(self.wattMeter.allFrame[index])
+            self.manageAndAddCrc(self.allData.wattMeter.allFrame[index])
             //console.log("Test ",self.wattMeter.allFrame[index])
         }
         self.createRfidFrame();
@@ -142,11 +145,11 @@ class Terminal {
     //Calcul du crc et insertion dans le tableau
     createRfidFrame() {
 
-        var adr = self.wattMeter.adr
+        var adr = self.allData.wattMeter.adr
         adr = parseInt(adr, 16) - 20
         adr = adr.toString(16);
         var stringHex = self.crc16.determineString(adr)
-        self.rfid.frame.push([
+        self.allData.rfid.frame.push([
             stringHex + (adr.toString()),
             "0x03",
             "0x00",
@@ -156,9 +159,9 @@ class Terminal {
         ]);
 
         //Calcul et ajout du crc dans la trame
-        self.manageAndAddCrc(self.rfid.frame[0])
+        self.manageAndAddCrc(self.allData.rfid.frame[0])
 
-        self.rfid.adr = self.rfid.frame[0][0]
+        self.allData.rfid.adr = self.allData.rfid.frame[0][0]
         //console.log("Ici ",self.rfid.frame[0])
     }
 
@@ -166,13 +169,13 @@ class Terminal {
     createHimFrame() {
         var crc = [];
         //On récupère l'adresse
-        var adr = self.wattMeter.adr
+        var adr = self.allData.wattMeter.adr
         //Ici -10 car tout simplement l'adresse de l'ihm est celle du mesureur -10
         adr = parseInt(adr, 16) - 10
         adr = adr.toString(16);
         var stringHex = self.crc16.determineString(adr)
 
-        self.him.frame.push([
+        self.allData.him.frame.push([
             stringHex + (adr.toString()),
             //Adr fonction lire n mots
             "0x10",
@@ -197,17 +200,17 @@ class Terminal {
             //Crc
         ]);
         //Calcul et ajout du crc dans la trame
-        self.manageAndAddCrc(self.him.frame[0])
+        self.manageAndAddCrc(self.allData.him.frame[0])
 
-        self.him.adr = self.him.frame[0][0]
-        
+        self.allData.him.adr = self.allData.him.frame[0][0]
+
         this.createContactorFrame();
     }
 
     //Création de la trame du contacteur pour pouvoir fournir ou non la puissance
     createContactorFrame() {
-        self.contactor.frame.push([
-            self.him.adr,
+        self.allData.contactor.frame.push([
+            self.allData.him.adr,
             //Adr fonction ecriture 1 bit
             "0x05",
             //Adr du bit
@@ -219,7 +222,7 @@ class Terminal {
         ]);
 
         //Calcul et ajout du crc dans la trame
-        self.manageAndAddCrc(self.contactor.frame[0])
+        self.manageAndAddCrc(self.allData.contactor.frame[0])
 
     }
 
@@ -228,13 +231,13 @@ class Terminal {
         var crc = [];
         var newValue;
 
-        switch (self.contactor.frame[0][3]) {
+        switch (self.allData.contactor.frame[0][3]) {
             case "0x00":
-                console.log("Switch contactor ON");
+                console.log("From Terminal.js [233] :  Switch contactor ON");
                 newValue = "0xFF";
                 break;
             case "0xFF":
-                console.log("Switch contactor OFF");
+                console.log("From Terminal.js [233] : Switch contactor OFF");
                 newValue = "0x00";
                 break;
             default:
@@ -242,14 +245,14 @@ class Terminal {
         }
 
         //Modification du champ du tableau pour allumer ou éteindre le contacteur
-        self.contactor.frame[0][3] = newValue
+        self.allData.contactor.frame[0][3] = newValue
 
         ////Calcul du crc et ajout manuellement dans la trame
-        crc = self.manageCrc(self.contactor.frame[0], self.contactor.frame[0].length - 2)
+        crc = self.manageCrc(self.allData.contactor.frame[0], self.allData.contactor.frame[0].length - 2)
 
         //Modification des champs CRC du tableau
-        self.contactor.frame[0][5] = crc[0]
-        self.contactor.frame[0][6] = crc[1]
+        self.allData.contactor.frame[0][5] = crc[0]
+        self.allData.contactor.frame[0][6] = crc[1]
 
     }
 
@@ -279,11 +282,45 @@ class Terminal {
     }
 
     //Va changer la trame de l'ihm avec les nouvelles valeurs reçu
-    setNewValueHim(){
+    setHimValue() {
 
         console.log('new value him')
+        //On va changer les valeurs dans le tableau IHM
+
+        //Changement Intensité
+        self.allData.him.frame[0][6] = self.allData.wattMeter.ampere[0]
+        self.allData.him.frame[0][7] = self.allData.wattMeter.ampere[1]
+
+        console.log("Test : ", self.allData.wattMeter.ampere[0])
+        console.log("Test : ", self.allData.wattMeter.ampere[1])
+        console.log("Test : ", self.allData.him.frame[0])
+
+
+
 
     }
+
+    //Modification des volts
+    setVoltageValue(valueR) {
+        self.allData.wattMeter.voltage[0] = valueR.substring(0, 4);
+        self.allData.wattMeter.voltage[1] = valueR.substring(5, 9);
+    }
+
+    //Modification des ampères
+    setAmpereValue(valueR) {
+        self.allData.wattMeter.ampere[0] = valueR.substring(0, 4);
+        self.allData.wattMeter.ampere[1] = valueR.substring(5, 9);
+    }
+    
+    //Modification de la puissance
+    setPowerValue(valueR) {
+        self.allData.wattMeter.power[0] = valueR.substring(0, 4);
+        self.allData.wattMeter.power[1] = valueR.substring(5, 9);
+        self.allData.wattMeter.power[2] = valueR.substring(10, 14);
+        self.allData.wattMeter.power[3] = valueR.substring(15, 19);
+    }
+
+
 
     resetD() {
         self.nbKwh = 0;
