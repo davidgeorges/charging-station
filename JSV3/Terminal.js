@@ -278,6 +278,13 @@ class Terminal {
         return crc
     }
 
+    //Va changer la trame de l'ihm avec les nouvelles valeurs reçu
+    setNewValueHim(){
+
+        console.log('new value him')
+
+    }
+
     resetD() {
         self.nbKwh = 0;
         self.timeP = 0;

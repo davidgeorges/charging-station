@@ -357,7 +357,7 @@ class Server {
                                 self.wattMeterProcessing(dataR.data, copyTabTerminal, self.tabToRead[index].whatIsWritten)
                                 break;
                             case "him":
-                                self.himProcessing(copyTabTerminal, index2)
+                                self.himProcessing(index2)
                                 break;
                             default:
                                 break;
@@ -659,26 +659,14 @@ class Server {
     }
 
     //Lorsqu'on reçoits des trames de l'ihm
-    himProcessing(tabR, indexR) {
+    himProcessing(indexR) {
 
         //On simule les valeurs (kW chargé, restant...)
 
         //On récupère le mesureur pour récupérer ses valeurs
-        var copyTabTerminal = self.determineWhoIsWriting("wattMeter", indexR);
+        var copyTabTerminal = self.determineWhoIsWriting("obj", indexR);
 
-        //Insertion des valeurs dans la trame IHM
-        tabR.frame[0][4] = copyTabTerminal.ampere
-        tabR.frame[0][6] = copyTabTerminal.power
-        tabR.frame[0][7] = copyTabTerminal.voltage
-
-        console.log("Test 703 : ", tabR.frame[0][4])
-        console.log("Test 704 : ", tabR.frame[0][6])
-        console.log("Test 705 : ", tabR.frame[0][7])
-
-        var powerValue = parseInt(copyTabTerminal.power.substring(2, 4) + copyTabTerminal.power.substring(7, 9) + copyTabTerminal.power.substring(12, 14) + copyTabTerminal.power.substring(17, 19), 16) / 1000;
-
-
-        self.simulateCharge(powerValue, indexR)
+        copyTabTerminal.setNewValueHim();
 
     }
 
