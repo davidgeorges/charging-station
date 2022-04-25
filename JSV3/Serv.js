@@ -304,7 +304,7 @@ class Server {
                             dataR = e
                             //Si on a deja eu des erreurs mais que le module communique actuellement
                             if (self.tabTerminal[index2].getNbRetry(whoIsWriting) > 0) {
-                                self.tabTerminal[index2].setNbRetry(0,whoIsWriting);
+                                self.tabTerminal[index2].setNbRetry(0, whoIsWriting);
                             }
                         })
                         //Erreur lors de la promesse
@@ -322,8 +322,8 @@ class Server {
                                         status: "error",
                                         adr: self.tabTerminal[index2].getAdr(whoIsWriting),
                                     })
-                                    self.tabTerminal[index2].setAnyError(true,whoIsWriting)
-                                    self.emitSetTimeOut(index2,whoIsWriting)
+                                    self.tabTerminal[index2].setAnyError(true, whoIsWriting)
+                                    self.emitSetTimeOut(index2, whoIsWriting)
                                     break;
                                 //La communication a échoué à 3 FOIS, nous enlevons la trame du tableau à lire et l'insérons dans le tableau des erreurs
                                 case "brokenDown":
@@ -339,7 +339,7 @@ class Server {
                                     break;
                             }
                         })
-                      
+
 
                     //Si l'écriture s'est bien déroulé
                     if (dataR.status == "sucess") {
@@ -351,7 +351,7 @@ class Server {
                                         index = index - 1;
                                     })
                                     .catch((error) => {
-                                        console.log("From Serv.js [653] : ", error)
+                                        console.log("From Serv.js [354] : ", error)
                                     })
                                 break;
                             case "wattMeter":
@@ -420,7 +420,7 @@ class Server {
 
         self.tabTerminal.forEach(element => {
             if (element.getStatus() == "0x01") {
-                element.setPrio(Math.round((element.getTimeLeft() / element.getKwhLeft() ) * 100) / 100);
+                element.setPrio(Math.round((element.getTimeLeft() / element.getKwhLeft()) * 100) / 100);
                 console.log("Caclul de la prio pour ", element.getAdr("wattMeter"), "rés : ", element.getPrio());
                 tabPrio.push({
                     adr: element.getAdr("wattMeter"),
@@ -452,6 +452,13 @@ class Server {
                 data: self.tabTerminal[index].getRfidFrame(),
                 adr: self.tabTerminal[index].getAdr("rfid"),
             })
+
+            /*
+            self.tabToRead.push({
+                whoIsWriting: "him",
+                data: self.tabTerminal[index].getHimFrame(),
+                adr: self.tabTerminal[index].getAdr("him"),
+            });*/
         }
         console.log("From Serv.js [518] : Terminal created.")
         console.log("---------------------------------------");
@@ -461,9 +468,9 @@ class Server {
 
     // Retrouve l'index de l'element a modifier depuis son adresse (AUTO OK)
     findIndex(whoIsWritingR, dataR) {
-        for (const [index,element] of self.tabTerminal.entries()) {
+        for (const [index, element] of self.tabTerminal.entries()) {
             if (element.getAdr(whoIsWritingR) == dataR) {
-               // console.log("From Serv.js [478] : Index ", whoIsWritingR, "trouvé ! ", dataR," = ",element.getAdr(whoIsWritingR));
+                // console.log("From Serv.js [478] : Index ", whoIsWritingR, "trouvé ! ", dataR," = ",element.getAdr(whoIsWritingR));
                 return index
             }
         }
@@ -496,12 +503,6 @@ class Server {
             });
 
         }
-
-        self.tabToRead.push({
-            whoIsWriting: "him",
-            data: self.tabTerminal[indexRfid].getHimFrame(),
-            adr: self.tabTerminal[indexRfid].getAdr("him"),
-        });
     }
 
     //On enleve la trame qui n'est plus nécéssaire
@@ -513,13 +514,13 @@ class Server {
 
     /* Erreur lors de la réception de données, module ne communique plus.
        Mise en place d'un timeout pour laisser quelques secondes avant de réessayer */
-    emitSetTimeOut(indexR,whoIsWritingR) {
+    emitSetTimeOut(indexR, whoIsWritingR) {
 
         let nbRetry = self.tabTerminal[indexR].getNbRetry(whoIsWritingR);
         nbRetry++;
         setTimeout(() => {
-            self.tabTerminal[indexR].setAnyError(false,whoIsWritingR);
-            self.tabTerminal[indexR].setNbRetry(nbRetry,whoIsWritingR);
+            self.tabTerminal[indexR].setAnyError(false, whoIsWritingR);
+            self.tabTerminal[indexR].setNbRetry(nbRetry, whoIsWritingR);
         }, 6000)
     }
 
@@ -579,33 +580,36 @@ class Server {
     }
 
     //Lorsqu'on reçoits des trames du  rfid
-    async rfidProcessing(whoIsWritingR, indexR, valueR) {
-        return new Promise(async (resolve, reject) => {
-            var promiseValue;
-            var anyError = true;
-            //Lecture de la bdd avec le code du badge RFID
-            await self.checkBdd(valueR).then((result) => {
-                //console.log('561',result)
-                self.io.emit("rfid", {
-                    status: "rfid accepted",
-                    adr: self.tabTerminal[indexR].getAdr(whoIsWritingR),
-                })
-                self.tabTerminal[indexR].switchContactor()
-                //On supprime la trame RFID du tableau
-                self.emitRemoveFromTab(indexR, valueR.adr)
-                promiseValue = 'rifdAccepted'
-                anyError = false;
-            }).catch((err) => {
-                promiseValue = err;
-            });
+    async rfidProcessing(whoIsWritingR, indexR, dataR) {
 
-            if (anyError) {
-                reject(promiseValue)
-            } else {
-                resolve(promiseValue)
-            }
+        if (dataR.data != '\x00\x00') {
+            return new Promise(async (resolve, reject) => {
+                var promiseValue;
+                var anyError = true;
+                //Lecture de la bdd avec le code du badge RFID
+                await self.checkBdd(dataR).then((result) => {
+                    //console.log('561',result)
+                    self.io.emit("rfid", {
+                        status: "rfid accepted",
+                        adr: self.tabTerminal[indexR].getAdr(whoIsWritingR),
+                    })
+                    self.tabTerminal[indexR].switchContactor()
+                    //On supprime la trame RFID du tableau
+                    self.emitRemoveFromTab(indexR, dataR.adr)
+                    promiseValue = 'rifdAccepted'
+                    anyError = false;
+                }).catch((err) => {
+                    promiseValue = err;
+                });
 
-        })
+                if (anyError) {
+                    reject(promiseValue)
+                } else {
+                    resolve(promiseValue)
+                }
+
+            })
+        }
 
     }
 
@@ -631,9 +635,10 @@ class Server {
     //Lorsqu'on reçoits des trames de l'ihm
     himProcessing(indexR) {
         self.tabTerminal[indexR].setHimValue()
+
     }
 
-   
+
 }
 
 /* Export du module */
