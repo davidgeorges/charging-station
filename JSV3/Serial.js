@@ -122,7 +122,7 @@ class Serial {
         let adr = "";
         self.whoIsWriting = whosWritingR
         return new Promise((resolve, reject) => {
-            console.log("From Serial.js [137] : Ecriture du module",self.whoIsWriting, " adr : ", dataToSend[0])
+            console.log("From Serial.js [137] : Ecriture du module", self.whoIsWriting, " adr : ", dataToSend[0])
             adr = dataToSend[0];
             self.port.write(dataToSend, (err) => {
                 if (err) { console.log("From Serial.js [140] :  ", err) }
@@ -148,7 +148,7 @@ class Serial {
 
     /* A venir ... (lecture des mots a lire ) */
     instructToDo() {
-        
+
         self.dataPromise = "";
         //Variable pour vérifier si  i
         //On créer et stock le nombre de bits de donneés
@@ -166,7 +166,7 @@ class Serial {
                 //On récupère tout les bits de donneés
                 for (let index = 3; index < 3 + nbDataBits; index++) {
                     //On concat les bits qui sont convertis en HEXA
-                    
+
                     self.dataPromise += self.dataReceive[index].toString(16);
                 }
                 //Conversion
@@ -186,10 +186,18 @@ class Serial {
 
     /* Conversion des données de la carte RFID reçu */
     convertRfidDataToString(str1) {
-        // Converion en String , récupération des données nécéssaires , et suppression des virgules */
-        var hex = str1.toString();
-        hex = hex.substr(3, 8)
-        return hex;
+
+        var hex = "";
+        for (let index = 4; index <= 10; index += 2) {
+            hex += str1[index].toString(16);
+        }
+
+        var str = '';
+        for (var n = 0; n < hex.length; n += 2) {
+            str += String.fromCharCode(parseInt(hex.substring(n, n+2), 16));
+        }
+        
+        return str;
     }
 
 
