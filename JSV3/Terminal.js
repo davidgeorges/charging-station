@@ -320,7 +320,7 @@ class Terminal {
         this.allData.him.frame[0][20] = crc[0]
         this.allData.him.frame[0][21] = crc[1]
 
-        console.log('new value him : ', this.allData.him.frame[0]);
+        console.log('new value him :', this.allData.him.frame[0]);
 
     }
 
