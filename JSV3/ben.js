@@ -131,3 +131,21 @@ wattMeterProcessing(dataR, tabTerminalR, whatIsWrittenR) {
     //On simule les valeurs (kW chargé, restant...)
     tabTerminalR.setHimValue();
 }
+
+simulateCharge(kwhUsedR, indexR) {
+
+    //On récupère tout l'objet
+    self.tabTerminal[indexR];
+
+    self.tabTerminal[indexR].allData.data.kwhLeft = (self.tabTerminal[indexR].allData.data.kwhLeft - (kwhUsedR / 3600)).toFixed(3)
+    self.tabTerminal[indexR].allData.data.timeLeft = Math.round(((self.tabTerminal[indexR].allData.data.timeLeft - 0.10) + Number.EPSILON) * 100) / 100
+
+    var dataSend = {
+        adr: copyTabTerminal.allData.wattMeter.adr,
+        kwhUsed: kwhUsedR,
+        kwhRemaining: self.tabTerminal[indexR].getKwhLeft(),
+        timeRemaining: self.tabTerminal[indexR].getTimeLeft,
+    }
+    this.io.emit("newData", dataSend);
+
+}

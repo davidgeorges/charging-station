@@ -1,9 +1,8 @@
-var self = null;
 
 class Terminal {
 
     /* Constructeur */
-    constructor(addressR) {
+    constructor(addressR, id) {
 
         /* Import module */
         this.crc16 = require('./CalculCR16')
@@ -22,25 +21,27 @@ class Terminal {
         this.nbKwh = 0; // kW demandé par l'utilisateur
         this.timeP = 0; // Temps max possible en charge
 
+        this.id = id;
+
         this.allData = {
 
-            rfid : {
+            rfid: {
                 adr: 0,
                 anyError: false,
                 nbRetry: 0,
                 frame: [],
             },
-    
+
             // Interface
-            him : {
+            him: {
                 adr: 0,
                 anyError: false,
                 nbRetry: 0,
                 frame: [],
             },
-    
+
             // Mesureur
-            wattMeter : {
+            wattMeter: {
                 adr: addressR,
                 voltage: ["0x00", "0x00"],
                 ampere: ["0x00", "0x00"],
@@ -49,29 +50,28 @@ class Terminal {
                 nbRetry: 0,
                 allFrame: [[], [], [],]
             },
-    
-            data : {
+
+            data: {
                 kwhLeft: 0, // (kW Restant a charger ) kW fourni - kW a charger
                 kwhGive: 0, //kW fourni pour la charge
                 timeLeft: 0, // (Temps restant possible en charge) temps écouler - temps de présence
                 prio: 0, // Coefficient  de priorité
             },
-    
-            contactor : {
+
+            contactor: {
                 frame: [],
             }
 
         }
 
-        
+
         /* Temps estimé pour le chargement */
-        this.nbRetry = 0,
-        this.isUsed = false;
+        this.nbRetry = 0;
+        this.status = "0x00";
 
-        self = this;
-
+        
         /* Appel méthode */
-        this.createTerminal()
+        this.createTerminal();
 
 
     }
@@ -83,7 +83,7 @@ class Terminal {
      */
     createTerminal() {
 
-        self.createAllTr();
+        this.createAllTr();
     }
 
     //Création de tout les trames de la BORNE
@@ -103,22 +103,22 @@ class Terminal {
 
                 switch (lengthTab) {
                     case 0:
-                        dataToChange = self.allData.wattMeter.adr;
+                        dataToChange = this.allData.wattMeter.adr;
                         break;
                     case 1:
-                        dataToChange = self.listInstructions[0].toString(16);
+                        dataToChange = this.listInstructions[0].toString(16);
                         break;
                     case 2:
-                        dataToChange = self.listCommand[index][0].toString(16)
+                        dataToChange = this.listCommand[index][0].toString(16)
                         break;
                     case 3:
-                        dataToChange = self.listCommand[index][1].toString(16)
+                        dataToChange = this.listCommand[index][1].toString(16)
                         break;
                     case 4:
                         dataToChange = "0x00"
                         break;
                     case 5:
-                        dataToChange = self.listRest[indexRest].toString(16)
+                        dataToChange = this.listRest[indexRest].toString(16)
                         break;
                     default:
                         dataToChange = "Err"
@@ -126,30 +126,30 @@ class Terminal {
                 }
 
                 if (dataToChange != "Err") {
-                    stringHex = self.crc16.determineString(dataToChange)
+                    stringHex = this.crc16.determineString(dataToChange)
                 }
 
                 if (stringHex != "Err") {
-                    self.allData.wattMeter.allFrame[index].push(stringHex + dataToChange);
+                    this.allData.wattMeter.allFrame[index].push(stringHex + dataToChange);
                 }
 
             }
             //Calcul et ajout du crc dans la trame
-            self.manageAndAddCrc(self.allData.wattMeter.allFrame[index])
-            //console.log("Test ",self.wattMeter.allFrame[index])
+            this.manageAndAddCrc(this.allData.wattMeter.allFrame[index])
+            //console.log("Test ",this.wattMeter.allFrame[index])
         }
-        self.createRfidFrame();
-        self.createHimFrame();
+        this.createRfidFrame();
+        this.createHimFrame();
     }
 
     //Calcul du crc et insertion dans le tableau
     createRfidFrame() {
 
-        var adr = self.allData.wattMeter.adr
+        var adr = this.allData.wattMeter.adr
         adr = parseInt(adr, 16) - 20
         adr = adr.toString(16);
-        var stringHex = self.crc16.determineString(adr)
-        self.allData.rfid.frame.push([
+        var stringHex = this.crc16.determineString(adr)
+        this.allData.rfid.frame.push([
             stringHex + (adr.toString()),
             "0x03",
             "0x00",
@@ -159,23 +159,22 @@ class Terminal {
         ]);
 
         //Calcul et ajout du crc dans la trame
-        self.manageAndAddCrc(self.allData.rfid.frame[0])
+        this.manageAndAddCrc(this.allData.rfid.frame[0])
 
-        self.allData.rfid.adr = self.allData.rfid.frame[0][0]
-        //console.log("Ici ",self.rfid.frame[0])
+        this.allData.rfid.adr = this.allData.rfid.frame[0][0]
+        //console.log("Ici ",this.rfid.frame[0])
     }
 
     //Création de la trame RFID (avec des valeurs par défaut)
     createHimFrame() {
-        var crc = [];
         //On récupère l'adresse
-        var adr = self.allData.wattMeter.adr
+        var adr = this.allData.wattMeter.adr
         //Ici -10 car tout simplement l'adresse de l'ihm est celle du mesureur -10
         adr = parseInt(adr, 16) - 10
         adr = adr.toString(16);
-        var stringHex = self.crc16.determineString(adr)
+        var stringHex = this.crc16.determineString(adr)
 
-        self.allData.him.frame.push([
+        this.allData.him.frame.push([
             stringHex + (adr.toString()),
             //Adr fonction lire n mots
             "0x10",
@@ -197,20 +196,19 @@ class Terminal {
             "0x00", "0x00",
             //Etat borne
             "0x00", "0x00",
-            //Crc
         ]);
         //Calcul et ajout du crc dans la trame
-        self.manageAndAddCrc(self.allData.him.frame[0])
+        this.manageAndAddCrc(this.allData.him.frame[0])
 
-        self.allData.him.adr = self.allData.him.frame[0][0]
+        this.allData.him.adr = this.allData.him.frame[0][0]
 
         this.createContactorFrame();
     }
 
     //Création de la trame du contacteur pour pouvoir fournir ou non la puissance
     createContactorFrame() {
-        self.allData.contactor.frame.push([
-            self.allData.him.adr,
+        this.allData.contactor.frame.push([
+            this.allData.him.adr,
             //Adr fonction ecriture 1 bit
             "0x05",
             //Adr du bit
@@ -222,7 +220,7 @@ class Terminal {
         ]);
 
         //Calcul et ajout du crc dans la trame
-        self.manageAndAddCrc(self.allData.contactor.frame[0])
+        this.manageAndAddCrc(this.allData.contactor.frame[0])
 
     }
 
@@ -231,7 +229,7 @@ class Terminal {
         var crc = [];
         var newValue;
 
-        switch (self.allData.contactor.frame[0][3]) {
+        switch (this.allData.contactor.frame[0][3]) {
             case "0x00":
                 console.log("From Terminal.js [233] :  Switch contactor ON");
                 newValue = "0xFF";
@@ -245,14 +243,14 @@ class Terminal {
         }
 
         //Modification du champ du tableau pour allumer ou éteindre le contacteur
-        self.allData.contactor.frame[0][3] = newValue
+        this.allData.contactor.frame[0][3] = newValue
 
         ////Calcul du crc et ajout manuellement dans la trame
-        crc = self.manageCrc(self.allData.contactor.frame[0], self.allData.contactor.frame[0].length - 2)
+        crc = this.manageCrc(this.allData.contactor.frame[0], this.allData.contactor.frame[0].length - 2)
 
         //Modification des champs CRC du tableau
-        self.allData.contactor.frame[0][5] = crc[0]
-        self.allData.contactor.frame[0][6] = crc[1]
+        this.allData.contactor.frame[0][5] = crc[0]
+        this.allData.contactor.frame[0][6] = crc[1]
 
     }
 
@@ -261,9 +259,9 @@ class Terminal {
         var crc = [];
         var stringHex = "";
         //Calcul et Ajout CRC16/MODBUS
-        crc = self.crc16.calculCRC(tabR, tabR.length)
+        crc = this.crc16.calculCRC(tabR, tabR.length)
         for (let lengtOfCrc = 0; lengtOfCrc < crc.length; lengtOfCrc++) {
-            stringHex = self.crc16.determineString(crc[lengtOfCrc])
+            stringHex = this.crc16.determineString(crc[lengtOfCrc])
             tabR.push(stringHex + crc[lengtOfCrc])
         }
     }
@@ -273,59 +271,183 @@ class Terminal {
         var crc = [];
         var stringHex = "";
         //Calcul et Ajout CRC16/MODBUS
-        crc = self.crc16.calculCRC(tabR, tabLength)
+        crc = this.crc16.calculCRC(tabR, tabLength)
         for (let lengtOfCrc = 0; lengtOfCrc < crc.length; lengtOfCrc++) {
-            stringHex = self.crc16.determineString(crc[lengtOfCrc]);
+            stringHex = this.crc16.determineString(crc[lengtOfCrc]);
             crc[lengtOfCrc] = stringHex + crc[lengtOfCrc];
         }
         return crc
     }
 
+
+    //----------------------------- SETTER -----------------------------//
+
     //Va changer la trame de l'ihm avec les nouvelles valeurs reçu
     setHimValue() {
 
-        console.log('new value him')
+        console.log('S : ', this.allData.wattMeter.adr);
+
+        var crc = [];
+
         //On va changer les valeurs dans le tableau IHM
 
         //Changement Intensité
-        self.allData.him.frame[0][6] = self.allData.wattMeter.ampere[0]
-        self.allData.him.frame[0][7] = self.allData.wattMeter.ampere[1]
+        this.allData.him.frame[0][6] = this.allData.wattMeter.voltage[0]
+        this.allData.him.frame[0][7] = this.allData.wattMeter.voltage[1]
 
-        console.log("Test : ", self.allData.wattMeter.ampere[0])
-        console.log("Test : ", self.allData.wattMeter.ampere[1])
-        console.log("Test : ", self.allData.him.frame[0])
+        //Changement Consigne courant
+        this.allData.him.frame[0][8] = this.allData.data.kwhGive[0]
+        this.allData.him.frame[0][9] = this.allData.data.kwhGive[1]
+
+        //Changement Ampère
+        this.allData.him.frame[0][14] = this.allData.wattMeter.ampere[0]
+        this.allData.him.frame[0][15] = this.allData.wattMeter.ampere[1]
+
+        //Changement Puissance
+        this.allData.him.frame[0][10] = this.allData.wattMeter.power[0]
+        this.allData.him.frame[0][11] = this.allData.wattMeter.power[1]
+        this.allData.him.frame[0][12] = this.allData.wattMeter.power[2]
+        this.allData.him.frame[0][13] = this.allData.wattMeter.power[3]
+
+        //Changement Ampère
+        this.allData.him.frame[0][19] = this.status
+
+        //Calcul du crc et ajout manuellement dans la trame
+        crc = this.manageCrc(this.allData.him.frame[0], this.allData.him.frame[0].length - 2)
 
 
+        //Modification des champs CRC du tableau
+        this.allData.him.frame[0][20] = crc[0]
+        this.allData.him.frame[0][21] = crc[1]
 
+        console.log('new value him : ', this.allData.him.frame[0]);
 
     }
 
     //Modification des volts
     setVoltageValue(valueR) {
-        self.allData.wattMeter.voltage[0] = valueR.substring(0, 4);
-        self.allData.wattMeter.voltage[1] = valueR.substring(5, 9);
+        console.log('S1 : ', this.allData.wattMeter.adr);
+        this.allData.wattMeter.voltage[0] = valueR[0];
+        this.allData.wattMeter.voltage[1] = valueR[1];
+
+        console.log("VOLT : ", this.allData.wattMeter.voltage);
+
     }
 
     //Modification des ampères
     setAmpereValue(valueR) {
-        self.allData.wattMeter.ampere[0] = valueR.substring(0, 4);
-        self.allData.wattMeter.ampere[1] = valueR.substring(5, 9);
+        console.log('S2 : ', this.allData.wattMeter.adr);
+        this.allData.wattMeter.ampere[0] = valueR[0];
+        this.allData.wattMeter.ampere[1] = valueR[1];
+
+        console.log("AMPERE : ", this.allData.wattMeter.ampere);
     }
-    
+
     //Modification de la puissance
     setPowerValue(valueR) {
-        self.allData.wattMeter.power[0] = valueR.substring(0, 4);
-        self.allData.wattMeter.power[1] = valueR.substring(5, 9);
-        self.allData.wattMeter.power[2] = valueR.substring(10, 14);
-        self.allData.wattMeter.power[3] = valueR.substring(15, 19);
+        console.log('S3 : ', this.allData.wattMeter.adr);
+        this.allData.wattMeter.power[0] = valueR[0];
+        this.allData.wattMeter.power[1] = valueR[1];
+        this.allData.wattMeter.power[2] = valueR[2];
+        this.allData.wattMeter.power[3] = valueR[3];
+        console.log("POWER: ", this.allData.wattMeter.power);
     }
 
-
-
-    resetD() {
-        self.nbKwh = 0;
-        self.timeP = 0;
+    //Modifie le status de la borne
+    setStatus(valueR) {
+        this.status = valueR;
+        console.log("Changing for : ", valueR, " and : ", this.allData.wattMeter.adr);
     }
+
+    //Modifie le nombre de kw a charger
+    setKwh(valueR) {
+        this.nbKwh = valueR;
+    }
+
+    //Modifie le temps maximum en charge
+    setTimeP(valueR) {
+        this.timeP = valueR;
+    }
+
+    //Modifie le nombre restant de kw a charger 
+    setKwhLeft(valueR) {
+        this.allData.data.kwhLeft = valueR;
+    }
+
+    //Modifie le temps restant en charge
+    setTimeLeft(valueR) {
+        this.allData.data.timeLeft = valueR;
+    }
+
+    setPrio(valueR){
+        this.allData.data.prio =valueR;
+    }
+
+    setKwhGive(valueR){
+        this.allData.data.kwhGive  = valueR
+    }
+
+    setAnyError(valueR,whoIsWriting) {
+       this.allData[whoIsWriting].anyError = valueR;
+       //console.log("changement Error")
+    }
+
+    setNbRetry(valueR,whoIsWriting) {
+        this.allData[whoIsWriting].nbRetry = valueR;
+    }
+
+    //----------------------------- GETTER -----------------------------//
+
+    //Renvoie le nombre restant de kw a charger 
+    getKwhLeft() {
+        return this.allData.data.kwhLeft;
+    }
+
+    //Renvoie le temps restant en charge
+    getTimeLeft() {
+        return this.allData.data.timeLeft;
+    }
+
+    //Renvoie le status de la borne
+    getStatus() {
+        return this.status;
+    }
+
+    //Renvoie l'adresse
+    getAdr(whoIsWriting) {
+        return this.allData[whoIsWriting].adr;
+    }
+
+    getWattMeterFrame(){
+        return this.allData.wattMeter.allFrame;
+    }
+
+    getRfidFrame(){
+        return this.allData.rfid.frame[0];
+    }
+
+    getHimFrame(){
+        return this.allData.him.frame[0];
+    }
+
+    getPrio(){
+        return this.allData.data.prio;
+    }
+
+    getKwhGive(){
+        return this.allData.data.kwhGive;
+    }
+    
+    getAnyError(whoIsWriting) {
+        return this.allData[whoIsWriting].anyError;
+        
+    }
+
+    getNbRetry(whoIsWriting) {
+        return this.allData[whoIsWriting].nbRetry;
+    }
+
+    
 
 }
 

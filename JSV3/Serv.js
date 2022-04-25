@@ -1,3 +1,4 @@
+
 let self = null;
 
 /* Implementation ... */
@@ -211,7 +212,7 @@ class Server {
         return new Promise((resolve, reject) => {
             var err = false;
             var status = " ";
-            if (self.tabTerminal.some(element => element.allData.rfid.adr == valueR.adr && element.isUsed == false)) {
+            if (self.tabTerminal.some(element => element.getAdr("rfid") == valueR.adr && element.getStatus() == "0x00")) {
                 self.db.readData(valueR.data, (dataR) => {
                     /*Si les données ne valent pas nulles,
                       Le code de la carte existe dans la base de données*/
@@ -238,11 +239,11 @@ class Server {
                             let index = self.findIndex("rfid", valueR.adr)
 
                             /* Modifications des valeurs */
-                            self.tabTerminal[index].nbkwh = dataR.data[0].nbKwh;
-                            self.tabTerminal[index].timeP = dataR.data[0].timeP;
-                            self.tabTerminal[index].allData.data.timeLeft = dataR.data[0].timeP * 60;
-                            self.tabTerminal[index].allData.data.kwhLeft = dataR.data[0].nbKwh;
-                            self.tabTerminal[index].isUsed = true;
+                            self.tabTerminal[index].setKwh(dataR.data[0].nbKwh);
+                            self.tabTerminal[index].setTimeP(dataR.data[0].timeP);
+                            self.tabTerminal[index].setTimeLeft(dataR.data[0].timeP * 60);
+                            self.tabTerminal[index].setKwhLeft(dataR.data[0].nbKwh);
+                            self.tabTerminal[index].setStatus("0x01");
 
                             //On Calcule le coefficient de prioritées et envoie de données
                             self.calcPrio(() => {
@@ -284,7 +285,6 @@ class Server {
         let index2;
         //Va contenir les données reçu lors du resolve ou reject de la promesse
         let dataR = {};
-        
         let whoIsWriting;
         //Si le tableau contient un élément
         if (self.tabToRead.length) {
@@ -295,43 +295,42 @@ class Server {
                 whoIsWriting = self.tabToRead[index].whoIsWriting
                 //On va chercher l'index de l'initiateur de la trame dans le tableau de bornes
                 index2 = self.findIndex(whoIsWriting, self.tabToRead[index].adr);
-                //Si on n'a pas d'erreur on peut écrire sur
-                if (!self.tabTerminal[index2].allData[whoIsWriting].anyError) {
+                //Si on n'a pas d'erreur on peut écrire su
+                if (!self.tabTerminal[index2].getAnyError(whoIsWriting)) {
                     //On écrit et on attend la résolution de la promesse
                     await self.mySerial.writeData(self.tabToRead[index].data, whoIsWriting)
                         //Résolution de la promesse avev sucess
                         .then((e) => {
                             dataR = e
                             //Si on a deja eu des erreurs mais que le module communique actuellement
-                            if (self.tabTerminal[index2].allData[whoIsWriting].nbRetry > 0) {
-                                self.tabTerminal[index2].allData[whoIsWriting].nbRetry = 0;
+                            if (self.tabTerminal[index2].getNbRetry(whoIsWriting) > 0) {
+                                self.tabTerminal[index2].setNbRetry(0,whoIsWriting);
                             }
                         })
                         //Erreur lors de la promesse
                         .catch((e) => {
                             dataR = e
                             //Si l'index du nombre d'essais est supérieur ou égal à 2 on met la borne en panne.
-                            if (self.tabTerminal[index2].allData[whoIsWriting].nbRetry >= 2) {
+                            if (self.tabTerminal[index2].getNbRetry(whoIsWriting) >= 2) {
                                 dataR.status = "brokenDown";
                             }
                             //Selon le satus de l'erreur
                             switch (dataR.status) {
                                 case "error":
                                     console.log("Timeout")
-                                    console.log("Test : ",self.tabTerminal[index2].allData[whoIsWriting].frame)
                                     self.io.emit(whoIsWriting, {
                                         status: "error",
-                                        adr: self.tabTerminal[index2].allData[whoIsWriting].adr,
+                                        adr: self.tabTerminal[index2].getAdr(whoIsWriting),
                                     })
-                                    self.tabTerminal[index2].allData[whoIsWriting].anyError = true;
-                                    self.emitSetTimeOut(self.tabTerminal[index2].allData[whoIsWriting])
+                                    self.tabTerminal[index2].setAnyError(true,whoIsWriting)
+                                    self.emitSetTimeOut(index2,whoIsWriting)
                                     break;
                                 //La communication a échoué à 3 FOIS, nous enlevons la trame du tableau à lire et l'insérons dans le tableau des erreurs
                                 case "brokenDown":
                                     console.log("Broken")
                                     self.io.emit(whoIsWriting, {
                                         status: "broken-down",
-                                        adr: self.tabTerminal[index2].allData[whoIsWriting].adr,
+                                        adr: self.tabTerminal[index2].getAdr(whoIsWriting),
                                     })
                                     //Cette méthode permet d'enlever la trame tu tableau à lire et de l'insérer dans le tableau des trames non fonctionnelles
                                     self.fromTabToReadToTabError(index, whoIsWriting)
@@ -340,10 +339,11 @@ class Server {
                                     break;
                             }
                         })
-                        console.log('RENRER .346',dataR)
+                      
+
                     //Si l'écriture s'est bien déroulé
                     if (dataR.status == "sucess") {
-                        
+
                         switch (whoIsWriting) {
                             case "rfid":
                                 await self.rfidProcessing(whoIsWriting, index, dataR)
@@ -397,11 +397,12 @@ class Server {
         //Tri croissant du coefficient de priorité
         tabPrio.sort(function (a, b) { return a.prio - b.prio });
 
-        //Pour chaque element du tableau on chance la valeur des kwh a fournir
+        //Pour chaque element du tableau on change la valeur des kwh a fournir
         for (const [indexPrio, elementPrio] of tabPrio.entries()) {
             for (const elementTerminal of self.tabTerminal) {
-                if (elementPrio.adr == elementTerminal.allData.wattMeter.adr) {
-                    elementTerminal.allData.data.kwhGive = test[indexPrio] * 7 / 100
+                if (elementPrio.adr == elementTerminal.getAdr("wattMeter")) {
+                    elementTerminal.setKwhGive(self.crc16.convertIntoHexa((test[indexPrio] * 7).toString(16), "kwhGive"));
+                    console.log("405 : ", elementTerminal.getKwhGive())
                 }
             }
         }
@@ -416,13 +417,14 @@ class Server {
             prio: 22.3,
             percentKwh: 0
         }];
+
         self.tabTerminal.forEach(element => {
-            if (element.isUsed) {
-                element.allData.data.prio = Math.round((element.allData.data.timeLeft / element.allData.data.kwhLeft) * 100) / 100;
-                console.log("Caclul de la prio pour ", element.allData.wattMeter.adr, "rés : ", element.allData.data.prio);
+            if (element.getStatus() == "0x01") {
+                element.setPrio(Math.round((element.getTimeLeft() / element.getKwhLeft() ) * 100) / 100);
+                console.log("Caclul de la prio pour ", element.getAdr("wattMeter"), "rés : ", element.getPrio());
                 tabPrio.push({
-                    adr: element.allData.wattMeter.adr,
-                    prio: element.allData.data.prio,
+                    adr: element.getAdr("wattMeter"),
+                    prio: element.getPrio(),
                     percentKwh: 0
                 })
             }
@@ -444,49 +446,26 @@ class Server {
             } else {
                 stringHex = "0x0";
             }
-            self.tabTerminal.push(new self.Terminal(stringHex + indexString));
+            self.tabTerminal.push(new self.Terminal(stringHex + indexString, index));
             self.tabToRead.push({
                 whoIsWriting: "rfid",
-                data: self.tabTerminal[index].allData.rfid.frame[0],
-                adr: self.tabTerminal[index].allData.rfid.adr,
+                data: self.tabTerminal[index].getRfidFrame(),
+                adr: self.tabTerminal[index].getAdr("rfid"),
             })
         }
         console.log("From Serv.js [518] : Terminal created.")
         console.log("---------------------------------------");
-        //console.log("T",this.tabToRead)
+        //console.log("T : ",self.tabToRead);
     }
 
 
     // Retrouve l'index de l'element a modifier depuis son adresse (AUTO OK)
-    findIndex(val, dataR) {
-        let index = 0;
-        switch (val) {
-            case "rfid":
-                for (index = 0; index < self.tabTerminal.length; index++) {
-                    if (self.tabTerminal[index].allData.rfid.adr == dataR) {
-                        console.log("From Serv.js [478] : Index rfid trouvé ! ", dataR);
-                        return index
-                    }
-                }
-                break;
-            case "wattMeter":
-                for (index = 0; index < self.tabTerminal.length; index++) {
-                    if (self.tabTerminal[index].allData.wattMeter.adr == dataR) {
-                        console.log("From Serv.js [478] : Index borne trouvé ! :");
-                        return index
-                    }
-                }
-                break;
-            case "him":
-                for (index = 0; index < self.tabTerminal.length; index++) {
-                    if (self.tabTerminal[index].allData.him.adr == dataR) {
-                        console.log("From Serv.js [478] : Index ihm trouvé ! ");
-                        return index
-                    }
-                }
-                break;
-            default:
-                break;
+    findIndex(whoIsWritingR, dataR) {
+        for (const [index,element] of self.tabTerminal.entries()) {
+            if (element.getAdr(whoIsWritingR) == dataR) {
+               // console.log("From Serv.js [478] : Index ", whoIsWritingR, "trouvé ! ", dataR," = ",element.getAdr(whoIsWritingR));
+                return index
+            }
         }
     }
 
@@ -505,22 +484,23 @@ class Server {
      */
     pushAllFrame(adrR) {
         let indexRfid = self.findIndex("rfid", adrR);
+        let wattMeterFrame = self.tabTerminal[indexRfid].getWattMeterFrame();
         /* Pour chaque Trame lié au rfid reçu et qui a été accépter par la borne 
            Nous les insérons dans le tableau des trames a lire (wattMeter et  ihm) */
-        for (let index = 0; index < self.tabTerminal[indexRfid].allData.wattMeter.allFrame.length; index++) {
+        for (let index = 0; index < wattMeterFrame.length; index++) {
             self.tabToRead.push({
                 whoIsWriting: "wattMeter",
-                data: self.tabTerminal[indexRfid].allData.wattMeter.allFrame[index],
-                adr: self.tabTerminal[indexRfid].allData.wattMeter.adr,
-                whatIsWritten: self.determineWhatIsWritten(self.tabTerminal[indexRfid].allData.wattMeter.allFrame[index][3])
+                data: wattMeterFrame[index],
+                adr: self.tabTerminal[indexRfid].getAdr("wattMeter"),
+                whatIsWritten: self.determineWhatIsWritten(wattMeterFrame[index][3])
             });
 
         }
 
         self.tabToRead.push({
             whoIsWriting: "him",
-            data: self.tabTerminal[indexRfid].allData.him.frame[0],
-            adr: self.tabTerminal[indexRfid].allData.him.adr,
+            data: self.tabTerminal[indexRfid].getHimFrame(),
+            adr: self.tabTerminal[indexRfid].getAdr("him"),
         });
     }
 
@@ -533,10 +513,13 @@ class Server {
 
     /* Erreur lors de la réception de données, module ne communique plus.
        Mise en place d'un timeout pour laisser quelques secondes avant de réessayer */
-    emitSetTimeOut(dataR) {
+    emitSetTimeOut(indexR,whoIsWritingR) {
+
+        let nbRetry = self.tabTerminal[indexR].getNbRetry(whoIsWritingR);
+        nbRetry++;
         setTimeout(() => {
-            dataR.anyError = false;
-            dataR.nbRetry++;
+            self.tabTerminal[indexR].setAnyError(false,whoIsWritingR);
+            self.tabTerminal[indexR].setNbRetry(nbRetry,whoIsWritingR);
         }, 6000)
     }
 
@@ -605,7 +588,7 @@ class Server {
                 //console.log('561',result)
                 self.io.emit("rfid", {
                     status: "rfid accepted",
-                    adr: self.tabTerminal[indexR].allData[whoIsWritingR].adr,
+                    adr: self.tabTerminal[indexR].getAdr(whoIsWritingR),
                 })
                 self.tabTerminal[indexR].switchContactor()
                 //On supprime la trame RFID du tableau
@@ -627,16 +610,18 @@ class Server {
     }
 
     //Lorsqu'on reçoits des trames du mesureur
-    wattMeterProcessing(dataR,indexR, whatIsWrittenR) {
-        var value = self.convertIntoHexa(dataR.toString(16), whatIsWrittenR);
+    wattMeterProcessing(dataR, indexR, whatIsWrittenR) {
+        console.log("Index : ", indexR)
+        var value = self.crc16.convertIntoHexa(dataR.toString(16), whatIsWrittenR);
         switch (whatIsWrittenR) {
             case "V":
-                self.tabTerminal[indexR].setVoltageValue(value);
+                self.tabTerminal[indexR].setVoltageValue(value)
+                break;
             case "A":
-                self.tabTerminal[indexR].setAmpereValue(value);
+                self.tabTerminal[indexR].setAmpereValue(value)
                 break;
             case "kW":
-                self.tabTerminal[indexR].setPowerValue(value);
+                self.tabTerminal[indexR].setPowerValue(value)
                 break;
             default:
                 break;
@@ -645,68 +630,10 @@ class Server {
 
     //Lorsqu'on reçoits des trames de l'ihm
     himProcessing(indexR) {
-
-        //On simule les valeurs (kW chargé, restant...)
-
-        self.tabTerminal[indexR].setHimValue();
-
+        self.tabTerminal[indexR].setHimValue()
     }
 
-    convertIntoHexa(dataR, whatIsWrittenR) {
-        var finalValue = "";
-        var nbByte;
-        var stringHex = " ";
-        //Si pair
-        //Determine le nombre d'octets
-        switch (whatIsWrittenR) {
-            case "V":
-                nbByte = 2;
-                break;
-            case "A":
-                nbByte = 2;
-                break;
-            case "kW":
-                nbByte = 4;
-                break;
-            default:
-                break;
-        }
-        const buf = Buffer.allocUnsafe(nbByte);
-        buf.writeIntBE("0x" + dataR, 0, nbByte)
-        let index = 0;
-        buf.forEach(element => {
-            if (element.toString(16).length == 1) {
-                stringHex = "0x0";
-            } else {
-                stringHex = "0x";
-            }
-            finalValue += stringHex + element.toString(16)
-
-            if (index != buf.length - 1) {
-                finalValue += ","
-            }
-            index++;
-        });
-        return finalValue
-    }
-
-    simulateCharge(kwhUsedR, indexR) {
-
-        //On récupère tout l'objet
-        self.tabTerminal[indexR];
-
-        self.tabTerminal[indexR].allData.data.kwhLeft = (self.tabTerminal[indexR].allData.data.kwhLeft - (kwhUsedR / 3600)).toFixed(3)
-        self.tabTerminal[indexR].allData.data.timeLeft = Math.round(((self.tabTerminal[indexR].allData.data.timeLeft - 0.10) + Number.EPSILON) * 100) / 100
-
-        var dataSend = {
-            adr: copyTabTerminal.allData.wattMeter.adr,
-            kwhUsed: kwhUsedR,
-            kwhRemaining: self.tabTerminal[indexR].allData.data.kwhLeft,
-            timeRemaining: self.tabTerminal[indexR].allData.data.timeLeft,
-        }
-        this.io.emit("newData", dataSend);
-
-    }
+   
 }
 
 /* Export du module */

@@ -61,4 +61,43 @@ function determineString(dataR) {
         console.log("From calculCRC16 [66] : Error determine string to use")
     }
 }
-module.exports = { calculCRC, determineString }
+
+//Conversion 
+function convertIntoHexa(dataR, whatIsWrittenR) {
+    var finalValue = [];
+    var nbByte;
+    var stringHex = " ";
+
+    //Si pair
+    //Determine le nombre d'octets
+    switch (whatIsWrittenR) {
+        case "V":
+            nbByte = 2;
+            break;
+        case "A":
+            nbByte = 2;
+            break;
+        case "kW":
+            nbByte = 4;
+            break;
+        case "kwhGive":
+            nbByte = 2;
+            break;
+        default:
+            break;
+    }
+
+    const buf = Buffer.allocUnsafe(nbByte);
+    buf.writeIntBE("0x" + dataR, 0, nbByte)
+
+    for (const element of buf) {
+        stringHex = determineString(element.toString(16))
+        finalValue.push(stringHex + element.toString(16))
+    }
+
+    return finalValue
+}
+
+
+
+module.exports = { calculCRC, determineString ,convertIntoHexa}
