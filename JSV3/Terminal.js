@@ -53,7 +53,7 @@ class Terminal {
 
             data: {
                 kwhLeft: 0, // (kW Restant a charger ) kW fourni - kW a charger
-                kwhGive: 0, //kW fourni pour la charge
+                kwhGive: ["0x00", "0x00"], //kW fourni pour la charge
                 timeLeft: 0, // (Temps restant possible en charge) temps écouler - temps de présence
                 prio: 0, // Coefficient  de priorité
             },

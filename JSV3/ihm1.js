@@ -1,6 +1,5 @@
 // Import dependencies
 const SerialPort = require("serialport");
-var childProcess = require('child_process');
 
 var dataReceive = [];
 var dataHex = [];
@@ -13,19 +12,14 @@ const port = new SerialPort("COM12", {
     parity: 'none'
 });
 
-const frame1 = [0x02, 0x03, 0x08, 0x00, 0x45, 0x00, 0x34, 0x00, 0x42, 0x00, 0x42, 0xa2, 0xe3];
 
 
 port.on("data", (line) => {
     dataReceive = line;
     converTabToHex();
-    if (dataHex[0] == "2") {
-        port.write(frame1, () => {
-            port.close((err) => {
-                //Nous éxécutons le script
-                var process = childProcess.fork('./borne2.js');
-            })
-        });
+    if (dataHex[0] == "b") {
+        console.log("IHM WRITED");
+        port.write([0x0b, 0x03, 0x00, 0x00, 0x01, 0x2D, 0xDB]);
     }
     dataHex = []
 });
@@ -34,6 +28,7 @@ port.on("data", (line) => {
 
 function converTabToHex() {
     dataReceive.forEach(element => {
+        //console.log('Convert ' + element.toString(16));
         dataHex.push(element.toString(16))
     });
     console.log("Converted : ", dataHex[0])
