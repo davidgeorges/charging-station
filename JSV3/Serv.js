@@ -56,7 +56,7 @@ class Server {
 
         this.kwhToUse = 0;
 
-        //Tableau des trame a écrire
+        //Tableau des trames a écrire
         this.tabToRead = []
         //Tableau dont l'écriture a échoué
         this.tabError = []
@@ -297,6 +297,10 @@ class Server {
                 index2 = self.findIndex(whoIsWriting, self.tabToRead[index].adr);
                 //Si on n'a pas d'erreur on peut écrire su
                 if (!self.tabTerminal[index2].getAnyError(whoIsWriting)) {
+                    //Si le module qui écrit est l'ihm nous mettons a jour toutes ses valeurs
+                    if (whoIsWriting == "ihm") {
+                        self.tabTerminal[index2].setHimValue();
+                    }
                     //On écrit et on attend la résolution de la promesse
                     await self.mySerial.writeData(self.tabToRead[index].data, whoIsWriting)
                         //Résolution de la promesse avev sucess
@@ -328,22 +332,21 @@ class Server {
                                 //La communication a échoué à 3 FOIS, nous enlevons la trame du tableau à lire et l'insérons dans le tableau des erreurs
                                 case "brokenDown":
                                     console.log("Broken")
+                                    //Cette méthode permet d'enlever la trame tu tableau à lire et de l'insérer dans le tableau des trames non fonctionnelles
+                                    self.fromTabToReadToTabError(index, whoIsWriting, index2)
+
                                     self.io.emit(whoIsWriting, {
                                         status: "broken-down",
                                         adr: self.tabTerminal[index2].getAdr(whoIsWriting),
                                     })
-                                    //Cette méthode permet d'enlever la trame tu tableau à lire et de l'insérer dans le tableau des trames non fonctionnelles
-                                    self.fromTabToReadToTabError(index, whoIsWriting)
+
                                     break;
                                 default:
                                     break;
                             }
                         })
-
-
                     //Si l'écriture s'est bien déroulé
                     if (dataR.status == "sucess") {
-
                         switch (whoIsWriting) {
                             case "rfid":
                                 await self.rfidProcessing(whoIsWriting, index, dataR)
@@ -357,18 +360,21 @@ class Server {
                             case "wattMeter":
                                 self.wattMeterProcessing(dataR.data, index2, self.tabToRead[index].whatIsWritten)
                                 break;
+                            /* si l'ihm réponse devons nous faire qqchose ? 
                             case "him":
                                 self.himProcessing(index2)
-                                break;
+                                break;*/
                             default:
                                 break;
                         }
                     }
+                    self.sendWebIhm(index2);
                     console.log("---------------------------------------")
                 } else {
                     console.log("From Serv.js [311] : Error not writing.")
                 }
             }
+            self.e
             // console.log("---------------------------------------")
             self.canEmit = true;
         } else {
@@ -401,8 +407,8 @@ class Server {
         for (const [indexPrio, elementPrio] of tabPrio.entries()) {
             for (const elementTerminal of self.tabTerminal) {
                 if (elementPrio.adr == elementTerminal.getAdr("wattMeter")) {
-                    elementTerminal.setKwhGive(self.crc16.convertIntoHexa((test[indexPrio] * 7).toString(16), "kwhGive"));
-                    console.log("405 : ", elementTerminal.getKwhGive())
+                    elementTerminal.setKwhGive(self.crc16.convertIntoHexa((test[indexPrio] * 70).toString(16), "kwhGive"));
+                    console.log("From Serv.js [405] : New value kwhGive ", elementTerminal.getKwhGive())
                 }
             }
         }
@@ -412,6 +418,7 @@ class Server {
     //Calcul le coefficient de prioritées selon les données (Présence et kW) (AUTO PAS OK)
     async calcPrio(callback) {
 
+        /**/
         var tabPrio = [{
             adr: "0x16",
             prio: 22.3,
@@ -421,7 +428,7 @@ class Server {
         self.tabTerminal.forEach(element => {
             if (element.getStatus() == "0x01") {
                 element.setPrio(Math.round((element.getTimeLeft() / element.getKwhLeft()) * 100) / 100);
-                console.log("Caclul de la prio pour ", element.getAdr("wattMeter"), "rés : ", element.getPrio());
+                console.log("From Serv.js [426] : Caclul de la prio ", element.getPrio());
                 tabPrio.push({
                     adr: element.getAdr("wattMeter"),
                     prio: element.getPrio(),
@@ -429,6 +436,7 @@ class Server {
                 })
             }
         });
+
         self.calculKwh(tabPrio);
 
         callback();
@@ -446,25 +454,18 @@ class Server {
             } else {
                 stringHex = "0x0";
             }
+            //Création des objets de la classe Terminal
             self.tabTerminal.push(new self.Terminal(stringHex + indexString, index));
-            self.tabToRead.push({
-                whoIsWriting: "rfid",
-                data: self.tabTerminal[index].getRfidFrame(),
-                adr: self.tabTerminal[index].getAdr("rfid"),
-            })
+            //Création de la trame RFID
+            self.createRfidFrame(index);
+            //Création de la tram IHM
+            self.createHimFrame(index);
 
-            /*
-            self.tabToRead.push({
-                whoIsWriting: "him",
-                data: self.tabTerminal[index].getHimFrame(),
-                adr: self.tabTerminal[index].getAdr("him"),
-            });*/
         }
         console.log("From Serv.js [518] : Terminal created.")
         console.log("---------------------------------------");
         //console.log("T : ",self.tabToRead);
     }
-
 
     // Retrouve l'index de l'element a modifier depuis son adresse (AUTO OK)
     findIndex(whoIsWritingR, dataR) {
@@ -487,35 +488,58 @@ class Server {
     /**
      * 
      * @param  adrR  adresse du RFID déclencher
-     * 
+     * @description Va insérer les trames du mesureur
      */
     pushAllFrame(adrR) {
-        let indexRfid = self.findIndex("rfid", adrR);
-        let wattMeterFrame = self.tabTerminal[indexRfid].getWattMeterFrame();
+        //On récupère l'index de la borne qui contient l'adresse de ce RFID
+        let indexTerminal = self.findIndex("rfid", adrR);
+        //On récupère le tableau des trames du mesureur
+        let wattMeterFrame = self.tabTerminal[indexTerminal].getWattMeterFrame();
+
         /* Pour chaque Trame lié au rfid reçu et qui a été accépter par la borne 
-           Nous les insérons dans le tableau des trames a lire (wattMeter et  ihm) */
+           Nous les insérons dans le tableau des trames a lire (wattMeter) */
         for (let index = 0; index < wattMeterFrame.length; index++) {
             self.tabToRead.push({
                 whoIsWriting: "wattMeter",
                 data: wattMeterFrame[index],
-                adr: self.tabTerminal[indexRfid].getAdr("wattMeter"),
+                adr: self.tabTerminal[indexTerminal].getAdr("wattMeter"),
                 whatIsWritten: self.determineWhatIsWritten(wattMeterFrame[index][3])
             });
-
         }
+
+        //On créer et insére la trame HIM après les trames du mesureur
+        self.createHimFrame(indexTerminal);
+
+
     }
 
-    //On enleve la trame qui n'est plus nécéssaire
-    emitRemoveFromTab(indexR, adrRfidR) {
-        self.tabToRead.splice(indexR, 1);
-        //Si celui qui a écrit est un rfid , on doit mettre toutes les trames de la borne
-        self.pushAllFrame(adrRfidR)
+    //On enleve les qui ne sont plus nécéssaire
+    removeFromTab(indexR, adrRfidR, whoIsWritingR) {
+        switch (whoIsWritingR) {
+            //On enleves les trois trames du mesureur
+            case "wattMeter":
+                for (let index = 0; index < self.tabToRead.length; index++) {
+                    if (self.tabToRead[index].data[0] == self.tabToRead[indexR].data[0]) {
+                        self.tabToRead.splice(index, 1);
+                    }
+                }
+                break;
+            case "rfid":
+                //On enleve la trame RFID
+                self.tabToRead.splice(indexR, 1);
+                //On enleve la trame IHM - pour l'insérer après les trames du mesureur
+                self.tabToRead.splice(indexR, 1);
+                //On insert toutes les trames du mesureur
+                self.pushAllFrame(adrRfidR)
+                break;
+            default:
+                break;
+        }
     }
 
     /* Erreur lors de la réception de données, module ne communique plus.
        Mise en place d'un timeout pour laisser quelques secondes avant de réessayer */
     emitSetTimeOut(indexR, whoIsWritingR) {
-
         let nbRetry = self.tabTerminal[indexR].getNbRetry(whoIsWritingR);
         nbRetry++;
         setTimeout(() => {
@@ -526,7 +550,7 @@ class Server {
 
     /* Supression des trames ne communiquant plus
        Ensuite nous les insérons dans le tableau cqui contient seulement les trames qui ne communique plus */
-    fromTabToReadToTabError(indexR, whoIsWritingR) {
+    fromTabToReadToTabError(indexR, whoIsWritingR, indexTerminalR) {
 
         /*Si celui qui écrit est le wattMeter on va rechercher tout ces trames
         et on les supprimes du tableau des trames a lire
@@ -538,11 +562,14 @@ class Server {
                     self.tabToRead.splice(index, 1);
                 }
             }
+        } else {
+            //on push dans le tableau d'erreur la trame
+            self.tabError.push(self.tabToRead[indexR])
+            //on enléve la trame qui ne fonctionne plus du tableau a lire
+            self.tabToRead.splice(indexR, 1);
         }
-        //on push dans le tableau d'erreur la trame
-        self.tabError.push(self.tabToRead[indexR])
-        //on enléve la trame qui ne fonctionne plus du tableau a lire
-        self.tabToRead.splice(indexR, 1);
+        //On met le status en panne
+        self.tabTerminal[indexTerminalR].setStatus("0x03")
     }
 
     //Va créer l'interval pour emit les trames
@@ -582,10 +609,11 @@ class Server {
     //Lorsqu'on reçoits des trames du  rfid
     async rfidProcessing(whoIsWritingR, indexR, dataR) {
 
-        if (dataR.data != '\x00\x00') {
-            return new Promise(async (resolve, reject) => {
-                var promiseValue;
-                var anyError = true;
+        return new Promise(async (resolve, reject) => {
+            var promiseValue;
+            var anyError = true;
+            //Si le RFID répond avec une carte de passé
+            if (dataR.data != '\x00\x00') {
                 //Lecture de la bdd avec le code du badge RFID
                 await self.checkBdd(dataR).then((result) => {
                     //console.log('561',result)
@@ -595,37 +623,40 @@ class Server {
                     })
                     self.tabTerminal[indexR].switchContactor()
                     //On supprime la trame RFID du tableau
-                    self.emitRemoveFromTab(indexR, dataR.adr)
+                    self.removeFromTab(indexR, dataR.adr, whoIsWritingR)
                     promiseValue = 'rifdAccepted'
                     anyError = false;
-                }).catch((err) => {
-                    promiseValue = err;
-                });
+                })
+                    .catch((err) => {
+                        promiseValue = err;
+                    });
+            } else {
+                promiseValue = { status: "noDataInCard" };
+            }
 
-                if (anyError) {
-                    reject(promiseValue)
-                } else {
-                    resolve(promiseValue)
-                }
+            if (anyError) {
+                reject(promiseValue)
+            } else {
+                resolve(promiseValue)
+            }
 
-            })
-        }
+
+        });
 
     }
 
     //Lorsqu'on reçoits des trames du mesureur
     wattMeterProcessing(dataR, indexR, whatIsWrittenR) {
-        console.log("Index : ", indexR)
         var value = self.crc16.convertIntoHexa(dataR.toString(16), whatIsWrittenR);
         switch (whatIsWrittenR) {
             case "V":
-                self.tabTerminal[indexR].setVoltageValue(value)
+                self.tabTerminal[indexR].setVoltageValue(value);
                 break;
             case "A":
-                self.tabTerminal[indexR].setAmpereValue(value)
+                self.tabTerminal[indexR].setAmpereValue(value);
                 break;
             case "kW":
-                self.tabTerminal[indexR].setPowerValue(value)
+                self.tabTerminal[indexR].setPowerValue(value);
                 break;
             default:
                 break;
@@ -633,12 +664,33 @@ class Server {
     }
 
     //Lorsqu'on reçoits des trames de l'ihm
-    himProcessing(indexR) {
-        self.tabTerminal[indexR].setHimValue()
-
+    himProcessing() {
+        console.log("From Serv.js [667] : données envoyer et reçu de l'IHM avec succées");
     }
 
+    createRfidFrame(indexR) {
+        self.tabToRead.push({
+            whoIsWriting: "rfid",
+            data: self.tabTerminal[indexR].getRfidFrame(),
+            adr: self.tabTerminal[indexR].getAdr("rfid"),
+        })
+    }
 
+    createHimFrame(indexR) {
+        self.tabToRead.push({
+            whoIsWriting: "him",
+            data: self.tabTerminal[indexR].getHimFrame(),
+            adr: self.tabTerminal[indexR].getAdr("him"),
+        });
+    }
+
+    sendWebIhm(indexR) {
+
+        var ihmSend = self.tabTerminal[indexR].getHimFrame();
+
+        self.io.emit("newValueIhm", ihmSend)
+
+    }
 }
 
 /* Export du module */

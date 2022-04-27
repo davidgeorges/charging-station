@@ -150,31 +150,25 @@ class Serial {
     instructToDo() {
 
         self.dataPromise = "";
-        //Variable pour vérifier si  i
         //On créer et stock le nombre de bits de donneés
         var nbDataBits = self.dataReceive[2];
-        var stringHex = "";
         //On le converti en entier
         nbDataBits = parseInt(nbDataBits);
         switch (self.whoIsWriting) {
             //Lecture 8 mot = RFID
             case "rfid":
-                //console.log(self.dataHex)
                 self.dataPromise = self.convertRfidDataToString(self.dataReceive)
                 break;
             case "wattMeter":
                 //On récupère tout les bits de donneés
                 for (let index = 3; index < 3 + nbDataBits; index++) {
                     //On concat les bits qui sont convertis en HEXA
-
                     self.dataPromise += self.dataReceive[index].toString(16);
                 }
-                //Conversion
-                //self.dataPromise = parseInt(self.dataPromise, 16)
                 console.log("---------------------------------------")
                 break;
             case "him":
-                console.log("From Serial.js [189] : him data receive.")
+                //console.log("From Serial.js [189] : him data receive.")
                 console.log("---------------------------------------")
                 break;
             default:
@@ -186,17 +180,14 @@ class Serial {
 
     /* Conversion des données de la carte RFID reçu */
     convertRfidDataToString(str1) {
-
         var hex = "";
         for (let index = 4; index <= 10; index += 2) {
             hex += str1[index].toString(16);
         }
-
         var str = '';
         for (var n = 0; n < hex.length; n += 2) {
-            str += String.fromCharCode(parseInt(hex.substring(n, n+2), 16));
+            str += String.fromCharCode(parseInt(hex.substring(n, n + 2), 16));
         }
-        
         return str;
     }
 

@@ -27,79 +27,56 @@ let statusTerminal3 = document.getElementById("statusTerminal3");
 
 let terminalUsed = document.getElementById("nbTermialUsed");
 
-/* Va regrouper tout les fonctionalités dans un event */
-socket.on("rfid", (dataR) => {
-   console.log("From Test.js : Rfid event trigger !");
-   console.log("---------------------------------------", dataR)
-
-   switch (dataR.adr) {
-      case "0x01":
-         adrTerminal1.innerHTML = dataR.adr
-         statusTerminal1.innerHTML = dataR.status;
-         break;
-      case "0x02":
-         adrTerminal2.innerHTML = dataR.adr
-         statusTerminal2.innerHTML = dataR.status;
-         break;
-      case "0x03":
-         adrTerminal3.innerHTML = dataR.adr
-         statusTerminal3.innerHTML = dataR.status;
-         break;
-      default:
-         break;
-   }
-
-})
-
-socket.on("wattMeter", (dataR) => {
-   console.log("From Test.js : wattMeter event trigger !");
-   console.log("---------------------------------------", dataR)
-   //changeB(dataR);
-})
-
-socket.on("him", (dataR) => {
-   console.log("From Test.js : him event trigger !");
-   console.log("---------------------------------------", dataR)
-   //changeB(dataR);
-})
 
 socket.on("changeTerminalUsed", (dataR) => {
    console.log("B ", dataR)
    //terminalUsed.innerHTML = dataR
 })
 
-
-socket.on("newData",(dataR)=>{
+socket.on("newValueIhm", (dataR) => {
+   console.log("Data R : ", dataR)
    changeB(dataR);
 })
 
 
 function changeB(dataR) {
    console.log("Val : ", dataR);
-   switch (dataR.adr) {
-      case '0x15':
-         adrTerminal1.innerHTML = dataR.adr
-         statusTerminal1.innerHTML = "charging...";
-         kwRemaining1.innerHTML = dataR.kwhRemaining
-         kwToUse1.innerHTML = dataR.kwhUsed
-         estimationTime1.innerHTML = dataR.timeRemaining
+
+   var copyAdrTerminal;
+   var copyStatusTerminal;
+   var copyKwRemaining;
+   var copyKwToUse;
+   var copyEstimationTime;
+
+   switch (dataR[0]) {
+      case '0x0b':
+         copyAdrTerminal = adrTerminal1
+         copyStatusTerminal = statusTerminal1
+         copyKwRemaining = kwRemaining1
+         copyKwToUse = kwToUse1
+         copyEstimationTime = estimationTime1
          break;
-      case '0x16':
-         adrTerminal2.innerHTML = dataR.adr
-         statusTerminal2.innerHTML = "charging...";
-         kwRemaining2.innerHTML = dataR.kwhRemaining
-         kwToUse2.innerHTML = dataR.kwhUsed
-         estimationTime2.innerHTML =  dataR.timeRemaining
+      case '0x0b':
+         copyAdrTerminal = adrTerminal2
+         copyStatusTerminal = statusTerminal2
+         copyKwRemaining = kwRemaining2
+         copyKwToUse = kwToUse2
+         copyEstimationTime = estimationTime2
          break;
-      case '0x17':
-         statusTerminal3.innerHTML = "charging...";
-         kwRemaining3.innerHTML = dataR.kwhRemaining
-         kwToUse3.innerHTML = dataR.kwhGive
-         estimationTime3.innerHTML = dataR.timeRemaining
+      case '0x0d':
+         copyAdrTerminal = adrTerminal3
+         copyStatusTerminal = statusTerminal3
+         copyKwRemaining = kwRemaining3
+         copyKwToUse = kwToUse3
+         copyEstimationTime = estimationTime3
          break;
       default:
          break;
    }
+
+   convertStatus(dataR,copyStatusTerminal);
+   convertPower(dataR,copyKwToUse)
+
 }
 
 
@@ -130,4 +107,33 @@ function resetP(dataR) {
       default:
          break;
    }
+}
+
+//Attribution du status en string et insertion dans l'ihm
+function convertStatus(dataR, elementR) {
+   console.log("d",dataR[19])
+   //Obj literals (remplace le switch)
+   var getStatus = (val) => {
+      var status = {
+         "0x00": "waiting",
+         "0x01": "working",
+         "0x02": "stopped",
+         "0x03": "broken-down",
+      }
+      return status[val];
+   }
+   //On fait appel 
+   var status = getStatus(dataR[19])
+   elementR.innerHTML = status;
+
+}
+
+//Conversion Hexa to Dec puissance et insertion dans l'ihm
+function convertPower(dataR, elementR) {
+   var valString = "";
+   for (let index = 10; index < 14; index++) {
+      valString += dataR[index].substring(2);
+   }
+   var finalVal = parseInt(valString, 16) / 1000
+   elementR.innerHTML = finalVal;
 }

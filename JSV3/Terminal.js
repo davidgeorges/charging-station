@@ -69,7 +69,7 @@ class Terminal {
         this.nbRetry = 0;
         this.status = "0x00";
 
-        
+
         /* Appel méthode */
         this.createTerminal();
 
@@ -279,84 +279,94 @@ class Terminal {
         return crc
     }
 
-
     //----------------------------- SETTER -----------------------------//
 
-    //Va changer la trame de l'ihm avec les nouvelles valeurs reçu
-    setHimValue() {
-
-        console.log('S : ', this.allData.wattMeter.adr);
-
-        var crc = [];
-
-        //On va changer les valeurs dans le tableau IHM
-
+    //Modification des volts au niveau de la trame ihm
+    setVoltageHim() {
         //Changement Intensité
         this.allData.him.frame[0][6] = this.allData.wattMeter.voltage[0]
         this.allData.him.frame[0][7] = this.allData.wattMeter.voltage[1]
+        this.setCrcHim();
+    }
 
-        //Changement Consigne courant
-        this.allData.him.frame[0][8] = this.allData.data.kwhGive[0]
-        this.allData.him.frame[0][9] = this.allData.data.kwhGive[1]
-
+    //Modification des volts au niveau de la trame ihm
+    setAmpereHim() {
         //Changement Ampère
         this.allData.him.frame[0][14] = this.allData.wattMeter.ampere[0]
         this.allData.him.frame[0][15] = this.allData.wattMeter.ampere[1]
+        this.setCrcHim();
+    }
 
+    //Modification de la puissance au niveau de la trame ihm
+    setPowerHim() {
         //Changement Puissance
         this.allData.him.frame[0][10] = this.allData.wattMeter.power[0]
         this.allData.him.frame[0][11] = this.allData.wattMeter.power[1]
         this.allData.him.frame[0][12] = this.allData.wattMeter.power[2]
         this.allData.him.frame[0][13] = this.allData.wattMeter.power[3]
+        this.setCrcHim();
+    }
 
+    //Modifie le nombre de kwh fourni au niveau de la trame ihm ( consigne )
+    setKwhGiveHim() {
+        //Changement Consigne courant
+        this.allData.him.frame[0][8] = this.allData.data.kwhGive[0]
+        this.allData.him.frame[0][9] = this.allData.data.kwhGive[1]
+        this.setCrcHim();
+    }
+
+    //Modification du status au niveau de la trame ihm
+    setStatusHim() {
         //Changement Ampère
         this.allData.him.frame[0][19] = this.status
+        this.setCrcHim();
+    }
 
+    //Modification du CRC de la trame ihm
+    setCrcHim() {
+        var crc = [];
         //Calcul du crc et ajout manuellement dans la trame
         crc = this.manageCrc(this.allData.him.frame[0], this.allData.him.frame[0].length - 2)
-
-
         //Modification des champs CRC du tableau
         this.allData.him.frame[0][20] = crc[0]
         this.allData.him.frame[0][21] = crc[1]
-
-        console.log('new value him :', this.allData.him.frame[0]);
 
     }
 
     //Modification des volts
     setVoltageValue(valueR) {
-        console.log('S1 : ', this.allData.wattMeter.adr);
+        //console.log('S1 : ', this.allData.wattMeter.adr);
         this.allData.wattMeter.voltage[0] = valueR[0];
         this.allData.wattMeter.voltage[1] = valueR[1];
-
-        console.log("VOLT : ", this.allData.wattMeter.voltage);
-
+        //console.log("VOLT : ", this.allData.wattMeter.voltage);
+        this.setVoltageHim();
     }
 
     //Modification des ampères
     setAmpereValue(valueR) {
-        console.log('S2 : ', this.allData.wattMeter.adr);
+        //console.log('S2 : ', this.allData.wattMeter.adr);
         this.allData.wattMeter.ampere[0] = valueR[0];
         this.allData.wattMeter.ampere[1] = valueR[1];
-
-        console.log("AMPERE : ", this.allData.wattMeter.ampere);
+        //console.log("AMPERE : ", this.allData.wattMeter.ampere);
+        this.setAmpereHim();
     }
 
     //Modification de la puissance
     setPowerValue(valueR) {
-        console.log('S3 : ', this.allData.wattMeter.adr);
+        //console.log('S3 : ', this.allData.wattMeter.adr);
         this.allData.wattMeter.power[0] = valueR[0];
         this.allData.wattMeter.power[1] = valueR[1];
         this.allData.wattMeter.power[2] = valueR[2];
         this.allData.wattMeter.power[3] = valueR[3];
-        console.log("POWER: ", this.allData.wattMeter.power);
+        //console.log("POWER: ", this.allData.wattMeter.power);
+        this.setPowerHim();
     }
 
     //Modifie le status de la borne
     setStatus(valueR) {
         this.status = valueR;
-        console.log("Changing for : ", valueR, " and : ", this.allData.wattMeter.adr);
+        console.log("From Terminal.js [357] : Changing status for : ", valueR);
+        this.setStatusHim();
     }
 
     //Modifie le nombre de kw a charger
@@ -379,20 +389,25 @@ class Terminal {
         this.allData.data.timeLeft = valueR;
     }
 
-    setPrio(valueR){
-        this.allData.data.prio =valueR;
+    //Modifie le coefficient de priorité 
+    setPrio(valueR) {
+        this.allData.data.prio = valueR;
     }
 
-    setKwhGive(valueR){
-        this.allData.data.kwhGive  = valueR
+    //Modifie le nombre de kwh fourni ( consigne )
+    setKwhGive(valueR) {
+        this.allData.data.kwhGive = valueR
+        this.setKwhGiveHim();
     }
 
-    setAnyError(valueR,whoIsWriting) {
-       this.allData[whoIsWriting].anyError = valueR;
-       //console.log("changement Error")
+    //Modifie l'état du module
+    setAnyError(valueR, whoIsWriting) {
+        this.allData[whoIsWriting].anyError = valueR;
+        //console.log("changement Error")
     }
 
-    setNbRetry(valueR,whoIsWriting) {
+    //Modifie le nombre d'essaie restant
+    setNbRetry(valueR, whoIsWriting) {
         this.allData[whoIsWriting].nbRetry = valueR;
     }
 
@@ -413,41 +428,46 @@ class Terminal {
         return this.status;
     }
 
-    //Renvoie l'adresse
+    //Renvoie l'adresse du module
     getAdr(whoIsWriting) {
         return this.allData[whoIsWriting].adr;
     }
 
-    getWattMeterFrame(){
+    //Renvoie les trames du mesureur
+    getWattMeterFrame() {
         return this.allData.wattMeter.allFrame;
     }
 
-    getRfidFrame(){
+    //Renvoie la trame du rfid
+    getRfidFrame() {
         return this.allData.rfid.frame[0];
     }
 
-    getHimFrame(){
+    getHimFrame() {
         return this.allData.him.frame[0];
     }
 
-    getPrio(){
+    //Renvoie le coefficient de priorité
+    getPrio() {
         return this.allData.data.prio;
     }
 
-    getKwhGive(){
+    //Renvoie les kw fourni
+    getKwhGive() {
         return this.allData.data.kwhGive;
     }
-    
+
+    //Renvoie l'état du module
     getAnyError(whoIsWriting) {
         return this.allData[whoIsWriting].anyError;
-        
+
     }
 
+    //Renvoie le nombre d'essaie du module
     getNbRetry(whoIsWriting) {
         return this.allData[whoIsWriting].nbRetry;
     }
 
-    
 
 }
 
