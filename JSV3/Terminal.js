@@ -225,22 +225,25 @@ class Terminal {
     }
 
     //Va éteindre ou allumer le contacteur selon son état actuelle
-    switchContactor() {
+    switchContactor(valueR) {
         var crc = [];
         var newValue;
 
-        switch (this.allData.contactor.frame[0][3]) {
-            case "0x00":
-                console.log("From Terminal.js [233] :  Switch contactor ON");
-                newValue = "0xFF";
-                break;
-            case "0xFF":
-                console.log("From Terminal.js [233] : Switch contactor OFF");
-                newValue = "0x00";
-                break;
-            default:
-                break;
+        var switchContactorValue = (valueR) => {
+            var inputs = {
+                "OFF": () => {
+                    console.log("From Terminal.js [233] : Switch contactor OFF");
+                    newValue = "0x00";
+                },
+                "ON": () => {
+                    console.log("From Terminal.js [233] :  Switch contactor ON");
+                    newValue = "0xFF";
+                },
+            }
+            inputs[valueR]();
         }
+        //On fait appel 
+        switchContactorValue(valueR)
 
         //Modification du champ du tableau pour allumer ou éteindre le contacteur
         this.allData.contactor.frame[0][3] = newValue
@@ -468,6 +471,9 @@ class Terminal {
         return this.allData[whoIsWriting].nbRetry;
     }
 
+    resetEveryData() {
+
+    }
 
 }
 

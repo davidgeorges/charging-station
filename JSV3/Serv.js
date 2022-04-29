@@ -65,7 +65,7 @@ class Server {
         //Va contenir l'interval sur la méthode emit()
         this.intervalEmitRfid = null;
 
-        this.tabInterval = [];
+        this.intervalWebIhm = null;
 
         //Pour 
         self = this;
@@ -85,7 +85,6 @@ class Server {
             console.log("From Serv.js : HTTP connection already created");
         } else {
             self.app = self.http.createServer(function (req, res) {
-
                 /* Selon la requête on appel la fonction sendFile avec en paramètre la res  ( pour pouvoir répondre à la requête depuis la fonction ),
                 on envoie le type de document et le fichier a lire */
                 switch (req.url) {
@@ -164,7 +163,9 @@ class Server {
         self.app.listen(self.port, () => {
             console.log(`From Serv.js : Mise en place du serveur http://localhost:${self.port}/`);
             console.log("---------------------------------------");
+            //Création socket.io
             self.io = new self.io.Server(self.app)
+            //Création du port com
             self.mySerial = new self.Serial(
                 self.portCom,
                 self.baudrate,
@@ -189,19 +190,6 @@ class Server {
     //On gére la communucation de Socket pour l'ihm WEB
     manageSocket() {
         self.io.on('connection', function (socket) {
-            /* User or ? connection */
-            switch (socket.handshake.query.myParam) {
-                case "User":
-                    console.log("From Serv.js : User connected");
-                    console.log("---------------------------------------")
-                    /* Si la chaine vaut " " c'est qu'il n'y a jamais eu de modification sur le panneau */
-                    //self.sendHtmlData()
-                    break;
-                default:
-                    console.log(self.pr.error("From Serv.js : Error connected"))
-                    console.log("---------------------------------------")
-                    break;
-            }
         });
     }
 
@@ -212,48 +200,51 @@ class Server {
         return new Promise((resolve, reject) => {
             var err = false;
             var status = " ";
+            //Si le satus de la 
             if (self.tabTerminal.some(element => element.getAdr("rfid") == valueR.adr && element.getStatus() == "0x00")) {
                 self.db.readData(valueR.data, (dataR) => {
                     /*Si les données ne valent pas nulles,
                       Le code de la carte existe dans la base de données*/
-                    switch (dataR.length) {
-                        case -1:
-                            err = true;
-                            status = "databaseTimeout";
-                            console.log("From Serv.js [ 231 ] : Error bdd timeout.");
-                            console.log("---------------------------------------");
-                            break;
-                        case 0:
-                            err = true;
-                            status = "userNotAvailable";
-                            console.log("From Serv.js [ 231 ] : User not available in BDD.");
-                            console.log("---------------------------------------");
-                            break;
-                        case 1:
-                            console.log("From Serv.js [214] : User available in BDD !")
-                            console.log("---------------------------------------")
-
-                            //On incrémente le nombre de bornes en utilisation
-                            self.nbBorneUsed++;
-                            //On Cherche l'index de l'adresse RFID correspondant à celui dans le tableau de bornes
-                            let index = self.findIndex("rfid", valueR.adr)
-
-                            /* Modifications des valeurs */
-                            self.tabTerminal[index].setKwh(dataR.data[0].nbKwh);
-                            self.tabTerminal[index].setTimeP(dataR.data[0].timeP);
-                            self.tabTerminal[index].setTimeLeft(dataR.data[0].timeP * 60);
-                            self.tabTerminal[index].setKwhLeft(dataR.data[0].nbKwh);
-                            self.tabTerminal[index].setStatus("0x01");
-
-                            //On Calcule le coefficient de prioritées et envoie de données
-                            self.calcPrio(() => {
-                                status = "userAvailable";
-                            });
-
-                            break;
-                        default:
-                            break;
+                    //Obj literals
+                    var fromLength = (val) => {
+                        var inputs = {
+                            "-1": function () {
+                                status = "databaseTimeout";
+                                console.log("From Serv.js [ 231 ] : Error bdd timeout.");
+                                console.log("---------------------------------------");
+                                err = true;
+                                status = "databaseTimeout";
+                            },
+                            "0": function () {
+                                console.log("From Serv.js [ 231 ] : User not available in BDD.");
+                                console.log("---------------------------------------");
+                                err = true;
+                                status = "userNotAvailable";
+                            },
+                            "1": function () {
+                                console.log("From Serv.js [214] : User available in BDD !")
+                                console.log("---------------------------------------")
+                                self.nbBorneUsed++;
+                                //On Cherche l'index de l'adresse RFID correspondant à celui dans le tableau de bornes
+                                let index = self.findIndex("rfid", valueR.adr)
+                                /* Modifications des valeurs */
+                                self.tabTerminal[index].setKwh(dataR.data[0].nbKwh);
+                                self.tabTerminal[index].setTimeP(dataR.data[0].timeP);
+                                self.tabTerminal[index].setTimeLeft(dataR.data[0].timeP * 60);
+                                self.tabTerminal[index].setKwhLeft(dataR.data[0].nbKwh);
+                                self.tabTerminal[index].setStatus("0x01");
+                                //On Calcule le coefficient de prioritées et envoie de données
+                                self.calcPrio(() => {
+                                    status = "userAvailable";
+                                });
+                            },
+                        }
+                        inputs[val]();
                     }
+
+                    //Appel object literals ( va éxécuter une fonction selon la longueur de dataR )
+                    fromLength(dataR.length.toString())
+
                     setTimeout(() => {
                         //Si il n'y a pas d'erreur
                         if (!err) {
@@ -282,7 +273,7 @@ class Server {
         //Va contenir l'index pour le tableau de trame a lire
         let index;
         //Va contenir l'index de l'adresse de la trame situé dans le tableau de borne
-        let index2;
+        let indexTerminal;
         //Va contenir les données reçu lors du resolve ou reject de la promesse
         let dataR = {};
         let whoIsWriting;
@@ -294,12 +285,12 @@ class Server {
             for (index = 0; index < self.tabToRead.length; index++) {
                 whoIsWriting = self.tabToRead[index].whoIsWriting
                 //On va chercher l'index de l'initiateur de la trame dans le tableau de bornes
-                index2 = self.findIndex(whoIsWriting, self.tabToRead[index].adr);
+                indexTerminal = self.findIndex(whoIsWriting, self.tabToRead[index].adr);
                 //Si on n'a pas d'erreur on peut écrire su
-                if (!self.tabTerminal[index2].getAnyError(whoIsWriting)) {
+                if (!self.tabTerminal[indexTerminal].getAnyError(whoIsWriting)) {
                     //Si le module qui écrit est l'ihm nous mettons a jour toutes ses valeurs
                     if (whoIsWriting == "ihm") {
-                        self.tabTerminal[index2].setHimValue();
+                        self.tabTerminal[indexTerminal].setHimValue();
                     }
                     //On écrit et on attend la résolution de la promesse
                     await self.mySerial.writeData(self.tabToRead[index].data, whoIsWriting)
@@ -307,43 +298,47 @@ class Server {
                         .then((e) => {
                             dataR = e
                             //Si on a deja eu des erreurs mais que le module communique actuellement
-                            if (self.tabTerminal[index2].getNbRetry(whoIsWriting) > 0) {
-                                self.tabTerminal[index2].setNbRetry(0, whoIsWriting);
+                            if (self.tabTerminal[indexTerminal].getNbRetry(whoIsWriting) > 0) {
+                                self.tabTerminal[indexTerminal].setNbRetry(0, whoIsWriting);
+                                self.setStatus("0x01");
                             }
                         })
                         //Erreur lors de la promesse
                         .catch((e) => {
                             dataR = e
                             //Si l'index du nombre d'essais est supérieur ou égal à 2 on met la borne en panne.
-                            if (self.tabTerminal[index2].getNbRetry(whoIsWriting) >= 2) {
+                            if (self.tabTerminal[indexTerminal].getNbRetry(whoIsWriting) >= 2) {
                                 dataR.status = "brokenDown";
                             }
+
                             //Selon le satus de l'erreur
-                            switch (dataR.status) {
-                                case "error":
-                                    console.log("Timeout")
-                                    self.io.emit(whoIsWriting, {
-                                        status: "error",
-                                        adr: self.tabTerminal[index2].getAdr(whoIsWriting),
-                                    })
-                                    self.tabTerminal[index2].setAnyError(true, whoIsWriting)
-                                    self.emitSetTimeOut(index2, whoIsWriting)
-                                    break;
-                                //La communication a échoué à 3 FOIS, nous enlevons la trame du tableau à lire et l'insérons dans le tableau des erreurs
-                                case "brokenDown":
-                                    console.log("Broken")
-                                    //Cette méthode permet d'enlever la trame tu tableau à lire et de l'insérer dans le tableau des trames non fonctionnelles
-                                    self.fromTabToReadToTabError(index, whoIsWriting, index2)
-
-                                    self.io.emit(whoIsWriting, {
-                                        status: "broken-down",
-                                        adr: self.tabTerminal[index2].getAdr(whoIsWriting),
-                                    })
-
-                                    break;
-                                default:
-                                    break;
+                            var fromStatus = (statusR) => {
+                                var inputs = {
+                                    "error": () => {
+                                        console.log("Timeout")
+                                        self.io.emit(whoIsWriting, {
+                                            status: "error",
+                                            adr: self.tabTerminal[indexTerminal].getAdr(whoIsWriting),
+                                        })
+                                        self.tabTerminal[indexTerminal].setAnyError(true, whoIsWriting)
+                                        self.emitSetTimeOut(indexTerminal, whoIsWriting)
+                                    },
+                                    "brokenDown": () => {
+                                        console.log("Broken")
+                                        //Cette méthode permet d'enlever la trame tu tableau à lire et de l'insérer dans le tableau des trames non fonctionnelles
+                                        self.fromTabToReadToTabError(index, whoIsWriting, indexTerminal)
+                                        self.io.emit(whoIsWriting, {
+                                            status: "broken-down",
+                                            adr: self.tabTerminal[indexTerminal].getAdr(whoIsWriting),
+                                        })
+                                    },
+                                }
+                                inputs[statusR];
                             }
+
+                            //On fait appel 
+                            fromStatus(dataR.status)
+
                         })
                     //Si l'écriture s'est bien déroulé
                     if (dataR.status == "sucess") {
@@ -368,13 +363,11 @@ class Server {
                                 break;
                         }
                     }
-                    self.sendWebIhm(index2);
                     console.log("---------------------------------------")
                 } else {
                     console.log("From Serv.js [311] : Error not writing.")
                 }
             }
-            self.e
             // console.log("---------------------------------------")
             self.canEmit = true;
         } else {
@@ -389,12 +382,12 @@ class Server {
 
         //Obj literals (remplace le switch)
         var getPourcentage = (val) => {
-            var pourcentage = {
+            var inputs = {
                 1: [100],
                 2: [55, 45],
                 3: [38, 34, 28]
             }
-            return pourcentage[val];
+            return inputs[val];
         }
 
         //On fait appel 
@@ -467,7 +460,7 @@ class Server {
         //console.log("T : ",self.tabToRead);
     }
 
-    // Retrouve l'index de l'element a modifier depuis son adresse (AUTO OK)
+    //Retrouve l'index de l'element a modifier depuis son adresse (AUTO OK)
     findIndex(whoIsWritingR, dataR) {
         for (const [index, element] of self.tabTerminal.entries()) {
             if (element.getAdr(whoIsWritingR) == dataR) {
@@ -480,7 +473,6 @@ class Server {
     //Va vérifier si nous pouvons appeler la méthode emit()
     checkIfCanEmit() {
         if (self.canEmit == true) {
-            //console.clear();
             self.emit();
         }
     }
@@ -495,7 +487,6 @@ class Server {
         let indexTerminal = self.findIndex("rfid", adrR);
         //On récupère le tableau des trames du mesureur
         let wattMeterFrame = self.tabTerminal[indexTerminal].getWattMeterFrame();
-
         /* Pour chaque Trame lié au rfid reçu et qui a été accépter par la borne 
            Nous les insérons dans le tableau des trames a lire (wattMeter) */
         for (let index = 0; index < wattMeterFrame.length; index++) {
@@ -506,11 +497,8 @@ class Server {
                 whatIsWritten: self.determineWhatIsWritten(wattMeterFrame[index][3])
             });
         }
-
         //On créer et insére la trame HIM après les trames du mesureur
         self.createHimFrame(indexTerminal);
-
-
     }
 
     //On enleve les qui ne sont plus nécéssaire
@@ -582,33 +570,33 @@ class Server {
         }
     }
 
-    //Pour determiner ce qui est écrit sur la borne Volt , Intensité ou Puissance
-    determineWhatIsWritten(adrR) {
-        var whatIsWritten;
-        switch (adrR) {
-            case '0x31':
-                whatIsWritten = "V"
-                //console.log("VOLT");
-                break;
-            case '0x39':
-                whatIsWritten = "A"
-                //console.log("CURRENT");
-                break;
-            case '0x40':
-                whatIsWritten = "kW"
-                //console.log("ACTIVE POWER");
-                break;
-            default:
-                self.whatIsWritten = "error"
-                break;
+    //Va créer l'interval pour emit les trames
+    createWebEmitInteval() {
+        if (self.intervalWebIhm == null) {
+            self.intervalWebIhm = setInterval(this.sendWebIhm, 1000);
+        } else {
+            console.log("From Serv.js [549] : Error web emit interval already created");
         }
+    }
 
+    //Pour determiner ce qui est écrit sur la borne Volt , Intensité ou Puissance
+    determineWhatIsWritten(adrInstructR) {
+        var whatIsWritten;
+        //Selon le satus de l'erreur
+        var determineWhatIsWritten = (adrInstructR) => {
+            var inputs = {
+                "0x31": () => { whatIsWritten = "V" },
+                "0x39": () => { whatIsWritten = "A" },
+                "0x40": () => { whatIsWritten = "kW" },
+            }
+            inputs[adrInstructR]();
+        }
+        determineWhatIsWritten(adrInstructR)
         return whatIsWritten
     }
 
     //Lorsqu'on reçoits des trames du  rfid
     async rfidProcessing(whoIsWritingR, indexR, dataR) {
-
         return new Promise(async (resolve, reject) => {
             var promiseValue;
             var anyError = true;
@@ -621,7 +609,8 @@ class Server {
                         status: "rfid accepted",
                         adr: self.tabTerminal[indexR].getAdr(whoIsWritingR),
                     })
-                    self.tabTerminal[indexR].switchContactor()
+                    //On active le contacteur
+                    self.tabTerminal[indexR].switchContactor("ON")
                     //On supprime la trame RFID du tableau
                     self.removeFromTab(indexR, dataR.adr, whoIsWritingR)
                     promiseValue = 'rifdAccepted'
@@ -633,34 +622,28 @@ class Server {
             } else {
                 promiseValue = { status: "noDataInCard" };
             }
-
             if (anyError) {
                 reject(promiseValue)
             } else {
                 resolve(promiseValue)
             }
-
-
         });
-
     }
 
     //Lorsqu'on reçoits des trames du mesureur
     wattMeterProcessing(dataR, indexR, whatIsWrittenR) {
         var value = self.crc16.convertIntoHexa(dataR.toString(16), whatIsWrittenR);
-        switch (whatIsWrittenR) {
-            case "V":
-                self.tabTerminal[indexR].setVoltageValue(value);
-                break;
-            case "A":
-                self.tabTerminal[indexR].setAmpereValue(value);
-                break;
-            case "kW":
-                self.tabTerminal[indexR].setPowerValue(value);
-                break;
-            default:
-                break;
+        //Selon le satus de l'erreur
+        var fromWhatIsWritten = (whatIsWrittenR) => {
+            var inputs = {
+                "V": () => { self.tabTerminal[indexR].setVoltageValue(value) },
+                "A": () => { self.tabTerminal[indexR].setAmpereValue(value) },
+                "kW": () => { self.tabTerminal[indexR].setPowerValue(value) },
+            }
+            inputs[whatIsWrittenR]();
         }
+        //On fait appel 
+        fromWhatIsWritten(whatIsWrittenR)
     }
 
     //Lorsqu'on reçoits des trames de l'ihm
@@ -668,6 +651,7 @@ class Server {
         console.log("From Serv.js [667] : données envoyer et reçu de l'IHM avec succées");
     }
 
+    //Créer la trame RFID
     createRfidFrame(indexR) {
         self.tabToRead.push({
             whoIsWriting: "rfid",
@@ -676,6 +660,7 @@ class Server {
         })
     }
 
+    //Créer la trame IHM
     createHimFrame(indexR) {
         self.tabToRead.push({
             whoIsWriting: "him",
@@ -684,12 +669,13 @@ class Server {
         });
     }
 
-    sendWebIhm(indexR) {
-
-        var ihmSend = self.tabTerminal[indexR].getHimFrame();
-
-        self.io.emit("newValueIhm", ihmSend)
-
+    sendWebIhm() {
+        var ihmSend;
+        for (const element of self.tabTerminal) {
+            ihmSend = element.getHimFrame();
+            //Si le status de la borne est en fonctionnement qu'il n'y pas d'erreur sur le mesureur ?
+            self.io.emit("newValueIhm", ihmSend)
+        }
     }
 }
 

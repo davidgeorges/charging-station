@@ -33,7 +33,6 @@ class Serial {
         //Flag pour savoir si nous avons reçu les données
         this.newData;
 
-
         this.dataPromise;
         this.whoIsWriting;
         self = this
@@ -154,29 +153,30 @@ class Serial {
         var nbDataBits = self.dataReceive[2];
         //On le converti en entier
         nbDataBits = parseInt(nbDataBits);
-        switch (self.whoIsWriting) {
-            //Lecture 8 mot = RFID
-            case "rfid":
-                self.dataPromise = self.convertRfidDataToString(self.dataReceive)
-                break;
-            case "wattMeter":
-                //On récupère tout les bits de donneés
-                for (let index = 3; index < 3 + nbDataBits; index++) {
-                    //On concat les bits qui sont convertis en HEXA
-                    self.dataPromise += self.dataReceive[index].toString(16);
-                }
-                console.log("---------------------------------------")
-                break;
-            case "him":
-                //console.log("From Serial.js [189] : him data receive.")
-                console.log("---------------------------------------")
-                break;
-            default:
-                console.log("erreur");
-                break;
-        }
-    }
 
+        //Selon le satus de l'erreur
+        var doInstruction = (whoIsWritingR) => {
+            var inputs = {
+                "rfid": () => { self.dataPromise = self.convertRfidDataToString(self.dataReceive) },
+                "wattMeter": () => {
+                    //On récupère tout les bits de donneés
+                    for (let index = 3; index < 3 + nbDataBits; index++) {
+                        //On concat les bits qui sont convertis en HEXA
+                        self.dataPromise += self.dataReceive[index].toString(16);
+                        console.log("---------------------------------------")
+                    }
+                },
+                "him": () => {
+                    //console.log("From Serial.js [189] : him data receive.")
+                    console.log("---------------------------------------")
+                },
+            }
+            inputs[whoIsWritingR]();
+        }
+
+        doInstruction(self.whoIsWriting)
+
+    }
 
     /* Conversion des données de la carte RFID reçu */
     convertRfidDataToString(str1) {
@@ -190,7 +190,6 @@ class Serial {
         }
         return str;
     }
-
 
 }
 

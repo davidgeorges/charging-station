@@ -10,6 +10,7 @@ let kwToUse1 = document.getElementById("kwUsed1");
 let kwToUse2 = document.getElementById("kwUsed2");
 let kwToUse3 = document.getElementById("kwUsed3");
 
+
 // Element pour les kw  restant à charger
 let kwRemaining1 = document.getElementById("kwRemaining1");
 let kwRemaining2 = document.getElementById("kwRemaining2");
@@ -40,14 +41,12 @@ socket.on("newValueIhm", (dataR) => {
 
 
 function changeB(dataR) {
-   console.log("Val : ", dataR);
-
    var copyAdrTerminal;
    var copyStatusTerminal;
    var copyKwRemaining;
    var copyKwToUse;
    var copyEstimationTime;
-
+   
    switch (dataR[0]) {
       case '0x0b':
          copyAdrTerminal = adrTerminal1
@@ -56,7 +55,7 @@ function changeB(dataR) {
          copyKwToUse = kwToUse1
          copyEstimationTime = estimationTime1
          break;
-      case '0x0b':
+      case '0x0c':
          copyAdrTerminal = adrTerminal2
          copyStatusTerminal = statusTerminal2
          copyKwRemaining = kwRemaining2
@@ -115,7 +114,7 @@ function convertStatus(dataR, elementR) {
    //Obj literals (remplace le switch)
    var getStatus = (val) => {
       var status = {
-         "0x00": "waiting",
+         "0x00": "waiting RFID",
          "0x01": "working",
          "0x02": "stopped",
          "0x03": "broken-down",
@@ -137,3 +136,4 @@ function convertPower(dataR, elementR) {
    var finalVal = parseInt(valString, 16) / 1000
    elementR.innerHTML = finalVal;
 }
+

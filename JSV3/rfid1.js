@@ -23,7 +23,7 @@ port.on("data", (line) => {
     converTabToHex();
     if (dataHex[0] == "1") {
         port.write(frame1, () => {
-
+            
             port.close((err) => {
                 //Nous éxécutons le script
                 var process = childProcess.fork('./borne1.js');

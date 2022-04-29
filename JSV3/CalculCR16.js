@@ -22,7 +22,7 @@ function calculCRC(buf, len) {
 
     switch (crc.toString(16).length) {
         case 3:
-            crc = "0"+crc.toString(16)
+            crc = "0" + crc.toString(16)
             break;
         default:
             break;
@@ -68,24 +68,18 @@ function convertIntoHexa(dataR, whatIsWrittenR) {
     var nbByte;
     var stringHex = " ";
 
-    //Si pair
-    //Determine le nombre d'octets
-    switch (whatIsWrittenR) {
-        case "V":
-            nbByte = 2;
-            break;
-        case "A":
-            nbByte = 2;
-            break;
-        case "kW":
-            nbByte = 4;
-            break;
-        case "kwhGive":
-            nbByte = 2;
-            break;
-        default:
-            break;
+    //Selon le satus de l'erreur
+    var determineNbByte = (whatIsWrittenR) => {
+        var inputs = {
+            "V": 2,
+            "A": 2,
+            "kW": 4,
+            "kwhGive": 2,
+        }
+        return inputs[whatIsWrittenR];
     }
+    //On fait appel 
+    nbByte = determineNbByte(whatIsWrittenR)
 
     const buf = Buffer.allocUnsafe(nbByte);
     buf.writeIntBE("0x" + dataR, 0, nbByte)
@@ -100,4 +94,4 @@ function convertIntoHexa(dataR, whatIsWrittenR) {
 
 
 
-module.exports = { calculCRC, determineString ,convertIntoHexa}
+module.exports = { calculCRC, determineString, convertIntoHexa }

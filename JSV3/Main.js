@@ -2,8 +2,6 @@
 
 /* Import des modules */
 const Server = require("./Serv");
-const dotenv = require('dotenv').config({ path: "../.env" })
-
 console.log("---------------------------------------")
 
 /* Instanciation */
@@ -24,6 +22,8 @@ server.createHttpConnection(() => {
         }*/
         server.createAllTerminal(2)
         server.createEmitInteval();
+        server.createWebEmitInteval();
+
     });
 });
 
