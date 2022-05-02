@@ -19,7 +19,6 @@ class Serial {
 
         /* Calcul crc */
         this.crc16 = require('./CalculCR16')
-        this.valCrc16
 
         /* Var pour créer la connexion */
         this.port = null;
@@ -35,6 +34,7 @@ class Serial {
 
         this.dataPromise;
         this.whoIsWriting;
+
         self = this
 
         //Appel de méthodes pour créer la communication serial
@@ -74,13 +74,11 @@ class Serial {
 
     /* Regroupe tout les listeners */
     allListener() {
-
         /* Mise en place des listener d'events */
         self.port.on('open', self.showPortOpen);
         self.port.on('close', self.showPortClose);
         self.port.on('error', self.showError);
-        self.port.on('data', self.onData);
-
+        self.port.on('data', self.newData);
     }
 
     /* --------------------------- FONCTIONS EXECUTER EVENT --------------------------- */
@@ -103,7 +101,8 @@ class Serial {
 
     }
 
-    onData(dataR) {
+    //
+    newData(dataR) {
         console.log("From Serial.js [92 ] : Données reçu.", dataR)
         /* On récupère les données reçu */
         self.dataReceive = dataR;
@@ -145,7 +144,7 @@ class Serial {
         })
     }
 
-    /* A venir ... (lecture des mots a lire ) */
+    /* Instruction à faire selon qui écrit */
     instructToDo() {
 
         self.dataPromise = "";

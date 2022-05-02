@@ -109,8 +109,11 @@ class Server {
                     case "/CSS/headers.css":
                         self.sendFile(res, 'text/html', 'utf-8', '../CSS/headers.css')
                         break
-                    case "/style.css":
+                    case "/CSS/style.css":
                         self.sendFile(res, 'text/html', 'utf-8', '../CSS/style.css')
+                        break
+                    case "/CSS/main.css":
+                        self.sendFile(res, 'text/html', 'utf-8', '../CSS/main.css')
                         break
                     case "/CSS/car.css":
                         self.sendFile(res, 'text/html', 'utf-8', '../CSS/car.css')
@@ -294,7 +297,7 @@ class Server {
                     }
                     //On écrit et on attend la résolution de la promesse
                     await self.mySerial.writeData(self.tabToRead[index].data, whoIsWriting)
-                        //Résolution de la promesse avev sucess
+                        //Résolution de la promesse avec sucess
                         .then((e) => {
                             dataR = e
                             //Si on a deja eu des erreurs mais que le module communique actuellement
@@ -333,7 +336,7 @@ class Server {
                                         })
                                     },
                                 }
-                                inputs[statusR];
+                                inputs[statusR]();
                             }
 
                             //On fait appel 
@@ -353,7 +356,7 @@ class Server {
                                     })
                                 break;
                             case "wattMeter":
-                                self.wattMeterProcessing(dataR.data, index2, self.tabToRead[index].whatIsWritten)
+                                self.wattMeterProcessing(dataR.data, indexTerminal, self.tabToRead[index].whatIsWritten)
                                 break;
                             /* si l'ihm réponse devons nous faire qqchose ? 
                             case "him":
@@ -448,7 +451,7 @@ class Server {
                 stringHex = "0x0";
             }
             //Création des objets de la classe Terminal
-            self.tabTerminal.push(new self.Terminal(stringHex + indexString, index));
+            self.tabTerminal.push(new self.Terminal(stringHex + indexString));
             //Création de la trame RFID
             self.createRfidFrame(index);
             //Création de la tram IHM
@@ -550,14 +553,20 @@ class Server {
                     self.tabToRead.splice(index, 1);
                 }
             }
+
+            //Mesureur ne communique plus on éteint le contacteur
+            self.tabTerminal[indexTerminalR].switchContactor("OFF")
+
         } else {
             //on push dans le tableau d'erreur la trame
             self.tabError.push(self.tabToRead[indexR])
             //on enléve la trame qui ne fonctionne plus du tableau a lire
             self.tabToRead.splice(indexR, 1);
         }
+
         //On met le status en panne
         self.tabTerminal[indexTerminalR].setStatus("0x03")
+
     }
 
     //Va créer l'interval pour emit les trames
@@ -669,13 +678,29 @@ class Server {
         });
     }
 
+    //Envoie données a l'ihm WEB
     sendWebIhm() {
         var ihmSend;
         for (const element of self.tabTerminal) {
             ihmSend = element.getHimFrame();
+
             //Si le status de la borne est en fonctionnement qu'il n'y pas d'erreur sur le mesureur ?
+            if (ihmSend[19] == "0x01" && element.getNbRetry("wattMeter") <= 0) {
+
+                var kwhGive = element.getKwhGive()
+                var kwhLeft = element.getKwhLeft()
+                //console.log("calcul kwh est", (parseInt(kwhGive[0].substring(2) + kwhGive[1].substring(2), 16)) / 1000)
+                kwhLeft -= (((parseInt(kwhGive[0].substring(2) + kwhGive[1].substring(2), 16)) / 1000) / 3600)
+                element.setKwhLeft(kwhLeft)
+
+            }
+
             self.io.emit("newValueIhm", ihmSend)
         }
+    }
+
+    disconnectCar() {
+
     }
 }
 

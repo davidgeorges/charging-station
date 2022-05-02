@@ -1,0 +1,7 @@
+.container-fluid {
+    width: 92.5%!important;
+}
+
+.navbar>.container-fluid{
+    width: 100%!important;
+}

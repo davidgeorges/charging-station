@@ -2,7 +2,7 @@
 class Terminal {
 
     /* Constructeur */
-    constructor(addressR, id) {
+    constructor(addressR ) {
 
         /* Import module */
         this.crc16 = require('./CalculCR16')
@@ -20,8 +20,6 @@ class Terminal {
 
         this.nbKwh = 0; // kW demandé par l'utilisateur
         this.timeP = 0; // Temps max possible en charge
-
-        this.id = id;
 
         this.allData = {
 
@@ -60,10 +58,13 @@ class Terminal {
 
             contactor: {
                 frame: [],
-            }
+            },
+            
+            himWeb :{
+               tabData : [],
+            },
 
         }
-
 
         /* Temps estimé pour le chargement */
         this.nbRetry = 0;
@@ -197,10 +198,23 @@ class Terminal {
             //Etat borne
             "0x00", "0x00",
         ]);
+
         //Calcul et ajout du crc dans la trame
         this.manageAndAddCrc(this.allData.him.frame[0])
-
         this.allData.him.adr = this.allData.him.frame[0][0]
+
+        //Création des données a envoyer pour l'ihm WEB
+        this.allData.himWeb.tabData.push([
+            stringHex + (adr.toString()),
+            //Puissance
+            0,
+            //Kw restant
+            0,
+            //Durée
+            0,
+            //Etat borne
+            0,
+        ]);
 
         this.createContactorFrame();
     }
@@ -323,6 +337,14 @@ class Terminal {
         //Changement Ampère
         this.allData.him.frame[0][19] = this.status
         this.setCrcHim();
+    }
+    
+    setStatusHimWebAdr(){
+        this.allData.himWeb.tabData[0] = this.allData.him.adr;
+    }
+
+    setStatusHimWeb(){
+
     }
 
     //Modification du CRC de la trame ihm
@@ -469,6 +491,11 @@ class Terminal {
     //Renvoie le nombre d'essaie du module
     getNbRetry(whoIsWriting) {
         return this.allData[whoIsWriting].nbRetry;
+    }
+
+    //Renvoie le status du contacteur
+    getStatusContactor() {
+        return this.allData.contactor.frame[0][3];
     }
 
     resetEveryData() {
