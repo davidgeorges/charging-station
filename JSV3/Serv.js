@@ -303,7 +303,7 @@ class Server {
                             //Si on a deja eu des erreurs mais que le module communique actuellement
                             if (self.tabTerminal[indexTerminal].getNbRetry(whoIsWriting) > 0) {
                                 self.tabTerminal[indexTerminal].setNbRetry(0, whoIsWriting);
-                                self.setStatus("0x01");
+                                self.tabTerminal[indexTerminal].setStatus("0x01");
                             }
                         })
                         //Erreur lors de la promesse
@@ -314,6 +314,8 @@ class Server {
                                 dataR.status = "brokenDown";
                             }
 
+                            console.log("Ici : ",dataR)
+                            
                             //Selon le satus de l'erreur
                             var fromStatus = (statusR) => {
                                 var inputs = {
@@ -689,11 +691,17 @@ class Server {
 
                 var kwhGive = element.getKwhGive()
                 var kwhLeft = element.getKwhLeft()
+                var timeLeft = element.getTimeLeft();
+                //console.log("T : ",timeLeft)
                 //console.log("calcul kwh est", (parseInt(kwhGive[0].substring(2) + kwhGive[1].substring(2), 16)) / 1000)
                 kwhLeft -= (((parseInt(kwhGive[0].substring(2) + kwhGive[1].substring(2), 16)) / 1000) / 3600)
+                timeLeft -= 0.1;
                 element.setKwhLeft(kwhLeft)
+                element.setTimeLeft(timeLeft.toFixed(2));
+                //console.log("Sending .. ", element.allData.himWeb.tabData)
 
             }
+
 
             self.io.emit("newValueIhm", ihmSend)
         }

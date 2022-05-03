@@ -2,7 +2,7 @@
 class Terminal {
 
     /* Constructeur */
-    constructor(addressR ) {
+    constructor(addressR) {
 
         /* Import module */
         this.crc16 = require('./CalculCR16')
@@ -59,9 +59,9 @@ class Terminal {
             contactor: {
                 frame: [],
             },
-            
-            himWeb :{
-               tabData : [],
+
+            himWeb: {
+                tabData: [],
             },
 
         }
@@ -203,7 +203,7 @@ class Terminal {
         this.manageAndAddCrc(this.allData.him.frame[0])
         this.allData.him.adr = this.allData.him.frame[0][0]
 
-        //Création des données a envoyer pour l'ihm WEB
+        //Création des données a envoyer pour l'ihm WEB 
         this.allData.himWeb.tabData.push([
             stringHex + (adr.toString()),
             //Puissance
@@ -338,14 +338,6 @@ class Terminal {
         this.allData.him.frame[0][19] = this.status
         this.setCrcHim();
     }
-    
-    setStatusHimWebAdr(){
-        this.allData.himWeb.tabData[0] = this.allData.him.adr;
-    }
-
-    setStatusHimWeb(){
-
-    }
 
     //Modification du CRC de la trame ihm
     setCrcHim() {
@@ -392,6 +384,7 @@ class Terminal {
         this.status = valueR;
         console.log("From Terminal.js [357] : Changing status for : ", valueR);
         this.setStatusHim();
+        this.setStatusHimWeb(valueR);
     }
 
     //Modifie le nombre de kw a charger
@@ -407,11 +400,13 @@ class Terminal {
     //Modifie le nombre restant de kw a charger 
     setKwhLeft(valueR) {
         this.allData.data.kwhLeft = valueR;
+        this.setKwhLeftHimWeb();
     }
 
     //Modifie le temps restant en charge
     setTimeLeft(valueR) {
         this.allData.data.timeLeft = valueR;
+        this.setDurationHimWeb();
     }
 
     //Modifie le coefficient de priorité 
@@ -423,6 +418,7 @@ class Terminal {
     setKwhGive(valueR) {
         this.allData.data.kwhGive = valueR
         this.setKwhGiveHim();
+        this.setKwhGiveHimWeb();
     }
 
     //Modifie l'état du module
@@ -435,6 +431,37 @@ class Terminal {
     setNbRetry(valueR, whoIsWriting) {
         this.allData[whoIsWriting].nbRetry = valueR;
     }
+
+    setStatusHimWeb(valueR) {
+        //Obj literals (remplace le switch)
+        var getStatus = (val) => {
+            var inputs = {
+                "0x00": "waiting RFID",
+                "0x01": "working",
+                "0x02": "stopped",
+                "0x03": "broken-down",
+            }
+            return inputs[val];
+        }
+        //On fait appel 
+        this.allData.himWeb.tabData[0][4] = getStatus(valueR);
+    }
+
+    setKwhGiveHimWeb() {
+                                         //va convertir la puissance depuis sa valeur HEXA et l'insérer dans le tableau
+        this.allData.himWeb.tabData[0][1] = (parseInt(this.allData.data.kwhGive[0].substring(2)+this.allData.data.kwhGive[1].substring(2), 16)/1000);
+        console.log("Test HH: ",this.allData.himWeb.tabData[1]);
+    }
+    
+    setKwhLeftHimWeb() {
+        this.allData.himWeb.tabData[0][2] = this.allData.data.kwhLeft;
+    }
+
+    setDurationHimWeb() {
+        this.allData.himWeb.tabData[0][3] = this.allData.data.timeLeft;
+    }
+
+    
 
     //----------------------------- GETTER -----------------------------//
 
