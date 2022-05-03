@@ -162,12 +162,10 @@ class Serial {
                     for (let index = 3; index < 3 + nbDataBits; index++) {
                         //On concat les bits qui sont convertis en HEXA
                         self.dataPromise += self.dataReceive[index].toString(16);
-                        console.log("---------------------------------------")
                     }
                 },
                 "him": () => {
                     //console.log("From Serial.js [189] : him data receive.")
-                    console.log("---------------------------------------")
                 },
             }
             inputs[whoIsWritingR]();

@@ -73,9 +73,10 @@ function changeB(dataR) {
          break;
    }
 
-   convertStatus(dataR,copyStatusTerminal);
-   convertPower(dataR,copyKwToUse)
-
+   setStatus(dataR[4],copyStatusTerminal);
+   setPower(dataR[1],copyKwToUse)
+   setKwhLeft(dataR[2],copyKwRemaining)
+   setTimeLeft(dataR[3],copyEstimationTime)
 }
 
 
@@ -108,32 +109,30 @@ function resetP(dataR) {
    }
 }
 
-//Attribution du status en string et insertion dans l'ihm
-function convertStatus(dataR, elementR) {
-   console.log("d",dataR[19])
-   //Obj literals (remplace le switch)
-   var getStatus = (val) => {
-      var status = {
-         "0x00": "waiting RFID",
-         "0x01": "working",
-         "0x02": "stopped",
-         "0x03": "broken-down",
-      }
-      return status[val];
-   }
-   //On fait appel 
-   var status = getStatus(dataR[19])
-   elementR.innerHTML = status;
-
+//
+function setStatus(valueR, elementR) {
+   elementR.innerHTML = valueR;
 }
 
-//Conversion Hexa to Dec puissance et insertion dans l'ihm
-function convertPower(dataR, elementR) {
-   var valString = "";
-   for (let index = 10; index < 14; index++) {
-      valString += dataR[index].substring(2);
-   }
-   var finalVal = parseInt(valString, 16) / 1000
-   elementR.innerHTML = finalVal;
+//
+function setPower(valueR, elementR) {
+   elementR.innerHTML = valueR;
 }
+
+//
+function setKwhLeft(valueR, elementR) {
+   elementR.innerHTML = valueR.toFixed(2);
+}
+
+//
+function setTimeLeft(valueR, elementR) {
+      var h = Math.floor(valueR / 60);
+      var m = valueR % 60;
+      h = h < 10 ? '0' + h : h; 
+      m = m < 10 ? '0' + m : m; 
+      var s =  h + ':' + m.toFixed();
+    
+   elementR.innerHTML = s;
+}
+
 

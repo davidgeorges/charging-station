@@ -213,7 +213,7 @@ class Terminal {
             //Durée
             0,
             //Etat borne
-            0,
+            "waiting RFID",
         ]);
 
         this.createContactorFrame();
@@ -299,43 +299,43 @@ class Terminal {
     //----------------------------- SETTER -----------------------------//
 
     //Modification des volts au niveau de la trame ihm
-    setVoltageHim() {
+    setVoltageHim(valueR) {
         //Changement Intensité
-        this.allData.him.frame[0][6] = this.allData.wattMeter.voltage[0]
-        this.allData.him.frame[0][7] = this.allData.wattMeter.voltage[1]
+        this.allData.him.frame[0][6] = valueR[0]
+        this.allData.him.frame[0][7] = valueR[1]
         this.setCrcHim();
     }
 
     //Modification des volts au niveau de la trame ihm
-    setAmpereHim() {
+    setAmpereHim(valueR) {
         //Changement Ampère
-        this.allData.him.frame[0][14] = this.allData.wattMeter.ampere[0]
-        this.allData.him.frame[0][15] = this.allData.wattMeter.ampere[1]
+        this.allData.him.frame[0][14] = valueR[0]
+        this.allData.him.frame[0][15] = valueR[1]
         this.setCrcHim();
     }
 
     //Modification de la puissance au niveau de la trame ihm
-    setPowerHim() {
+    setPowerHim(valueR) {
         //Changement Puissance
-        this.allData.him.frame[0][10] = this.allData.wattMeter.power[0]
-        this.allData.him.frame[0][11] = this.allData.wattMeter.power[1]
-        this.allData.him.frame[0][12] = this.allData.wattMeter.power[2]
-        this.allData.him.frame[0][13] = this.allData.wattMeter.power[3]
+        this.allData.him.frame[0][10] = valueR[0]
+        this.allData.him.frame[0][11] = valueR[1]
+        this.allData.him.frame[0][12] = valueR[2]
+        this.allData.him.frame[0][13] = valueR[3]
         this.setCrcHim();
     }
 
     //Modifie le nombre de kwh fourni au niveau de la trame ihm ( consigne )
-    setKwhGiveHim() {
+    setKwhGiveHim(valueR) {
         //Changement Consigne courant
-        this.allData.him.frame[0][8] = this.allData.data.kwhGive[0]
-        this.allData.him.frame[0][9] = this.allData.data.kwhGive[1]
+        this.allData.him.frame[0][8] = valueR[0]
+        this.allData.him.frame[0][9] = valueR[1]
         this.setCrcHim();
     }
 
     //Modification du status au niveau de la trame ihm
-    setStatusHim() {
+    setStatusHim(valueR) {
         //Changement Ampère
-        this.allData.him.frame[0][19] = this.status
+        this.allData.him.frame[0][19] = valueR
         this.setCrcHim();
     }
 
@@ -356,7 +356,7 @@ class Terminal {
         this.allData.wattMeter.voltage[0] = valueR[0];
         this.allData.wattMeter.voltage[1] = valueR[1];
         //console.log("VOLT : ", this.allData.wattMeter.voltage);
-        this.setVoltageHim();
+        this.setVoltageHim(valueR);
     }
 
     //Modification des ampères
@@ -365,7 +365,7 @@ class Terminal {
         this.allData.wattMeter.ampere[0] = valueR[0];
         this.allData.wattMeter.ampere[1] = valueR[1];
         //console.log("AMPERE : ", this.allData.wattMeter.ampere);
-        this.setAmpereHim();
+        this.setAmpereHim(valueR);
     }
 
     //Modification de la puissance
@@ -376,14 +376,14 @@ class Terminal {
         this.allData.wattMeter.power[2] = valueR[2];
         this.allData.wattMeter.power[3] = valueR[3];
         //console.log("POWER: ", this.allData.wattMeter.power);
-        this.setPowerHim();
+        this.setPowerHim(valueR);
     }
 
     //Modifie le status de la borne
     setStatus(valueR) {
         this.status = valueR;
         console.log("From Terminal.js [357] : Changing status for : ", valueR);
-        this.setStatusHim();
+        this.setStatusHim(valueR);
         this.setStatusHimWeb(valueR);
     }
 
@@ -400,13 +400,13 @@ class Terminal {
     //Modifie le nombre restant de kw a charger 
     setKwhLeft(valueR) {
         this.allData.data.kwhLeft = valueR;
-        this.setKwhLeftHimWeb();
+        this.setKwhLeftHimWeb(valueR);
     }
 
     //Modifie le temps restant en charge
     setTimeLeft(valueR) {
         this.allData.data.timeLeft = valueR;
-        this.setDurationHimWeb();
+        this.setDurationHimWeb(valueR);
     }
 
     //Modifie le coefficient de priorité 
@@ -417,8 +417,8 @@ class Terminal {
     //Modifie le nombre de kwh fourni ( consigne )
     setKwhGive(valueR) {
         this.allData.data.kwhGive = valueR
-        this.setKwhGiveHim();
-        this.setKwhGiveHimWeb();
+        this.setKwhGiveHim(valueR);
+        this.setKwhGiveHimWeb(valueR);
     }
 
     //Modifie l'état du module
@@ -429,6 +429,7 @@ class Terminal {
 
     //Modifie le nombre d'essaie restant
     setNbRetry(valueR, whoIsWriting) {
+        console.log("Nb retry : ",valueR,"from : ",this.allData.wattMeter.adr)
         this.allData[whoIsWriting].nbRetry = valueR;
     }
 
@@ -447,22 +448,20 @@ class Terminal {
         this.allData.himWeb.tabData[0][4] = getStatus(valueR);
     }
 
-    setKwhGiveHimWeb() {
+    setKwhGiveHimWeb(valueR) {
                                          //va convertir la puissance depuis sa valeur HEXA et l'insérer dans le tableau
-        this.allData.himWeb.tabData[0][1] = (parseInt(this.allData.data.kwhGive[0].substring(2)+this.allData.data.kwhGive[1].substring(2), 16)/1000);
-        console.log("Test HH: ",this.allData.himWeb.tabData[1]);
+        this.allData.himWeb.tabData[0][1] = (parseInt(valueR[0].substring(2)+valueR[1].substring(2), 16)/1000);
     }
     
-    setKwhLeftHimWeb() {
-        this.allData.himWeb.tabData[0][2] = this.allData.data.kwhLeft;
+    setKwhLeftHimWeb(valueR) {
+        this.allData.himWeb.tabData[0][2] = valueR;
     }
 
-    setDurationHimWeb() {
-        this.allData.himWeb.tabData[0][3] = this.allData.data.timeLeft;
+    setDurationHimWeb(valueR) {
+        this.allData.himWeb.tabData[0][3] = valueR;
     }
 
     
-
     //----------------------------- GETTER -----------------------------//
 
     //Renvoie le nombre restant de kw a charger 
@@ -499,6 +498,10 @@ class Terminal {
         return this.allData.him.frame[0];
     }
 
+    getWebHimData(){
+        return this.allData.himWeb.tabData[0];
+    }
+
     //Renvoie le coefficient de priorité
     getPrio() {
         return this.allData.data.prio;
@@ -526,7 +529,9 @@ class Terminal {
     }
 
     resetEveryData() {
-
+        this.setAmpereValue()
+        this.setVoltageValue()
+        this.setPowerValue()
     }
 
 }

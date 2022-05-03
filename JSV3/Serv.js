@@ -314,17 +314,13 @@ class Server {
                                 dataR.status = "brokenDown";
                             }
 
-                            console.log("Ici : ",dataR)
+                            console.log("From Serv.js [317] : ",dataR)
                             
                             //Selon le satus de l'erreur
                             var fromStatus = (statusR) => {
                                 var inputs = {
                                     "error": () => {
                                         console.log("Timeout")
-                                        self.io.emit(whoIsWriting, {
-                                            status: "error",
-                                            adr: self.tabTerminal[indexTerminal].getAdr(whoIsWriting),
-                                        })
                                         self.tabTerminal[indexTerminal].setAnyError(true, whoIsWriting)
                                         self.emitSetTimeOut(indexTerminal, whoIsWriting)
                                     },
@@ -332,10 +328,6 @@ class Server {
                                         console.log("Broken")
                                         //Cette méthode permet d'enlever la trame tu tableau à lire et de l'insérer dans le tableau des trames non fonctionnelles
                                         self.fromTabToReadToTabError(index, whoIsWriting, indexTerminal)
-                                        self.io.emit(whoIsWriting, {
-                                            status: "broken-down",
-                                            adr: self.tabTerminal[indexTerminal].getAdr(whoIsWriting),
-                                        })
                                     },
                                 }
                                 inputs[statusR]();
@@ -370,7 +362,7 @@ class Server {
                     }
                     console.log("---------------------------------------")
                 } else {
-                    console.log("From Serv.js [311] : Error not writing.")
+                   // console.log("From Serv.js [311] : Error not writing.")
                 }
             }
             // console.log("---------------------------------------")
@@ -682,28 +674,25 @@ class Server {
 
     //Envoie données a l'ihm WEB
     sendWebIhm() {
-        var ihmSend;
-        for (const element of self.tabTerminal) {
-            ihmSend = element.getHimFrame();
-
+        var ihmFrame;
+        var ihmWeb;
+        for (var element of self.tabTerminal) {
+            ihmFrame = element.getHimFrame();
+            ihmWeb = element.getWebHimData();
             //Si le status de la borne est en fonctionnement qu'il n'y pas d'erreur sur le mesureur ?
-            if (ihmSend[19] == "0x01" && element.getNbRetry("wattMeter") <= 0) {
-
+            if (ihmFrame[19] == "0x01" && (element.getNbRetry("wattMeter") <= 0)) {
                 var kwhGive = element.getKwhGive()
                 var kwhLeft = element.getKwhLeft()
                 var timeLeft = element.getTimeLeft();
-                //console.log("T : ",timeLeft)
+                //console.log("T : ",timeLeft,"LA :",ihmFrame[19],element.getNbRetry("wattMeter"))
                 //console.log("calcul kwh est", (parseInt(kwhGive[0].substring(2) + kwhGive[1].substring(2), 16)) / 1000)
                 kwhLeft -= (((parseInt(kwhGive[0].substring(2) + kwhGive[1].substring(2), 16)) / 1000) / 3600)
                 timeLeft -= 0.1;
                 element.setKwhLeft(kwhLeft)
                 element.setTimeLeft(timeLeft.toFixed(2));
                 //console.log("Sending .. ", element.allData.himWeb.tabData)
-
             }
-
-
-            self.io.emit("newValueIhm", ihmSend)
+            self.io.emit("newValueIhm", ihmWeb)
         }
     }
 
