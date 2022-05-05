@@ -529,9 +529,15 @@ class Terminal {
     }
 
     resetEveryData() {
-        this.setAmpereValue()
-        this.setVoltageValue()
-        this.setPowerValue()
+        this.setAmpereValue(["0x00","0x00"]);
+        this.setVoltageValue(["0x00","0x00"]);
+        this.setPowerValue(["0x00","0x00","0x00","0x00"]);
+        this.setKwhGive(["0x00","0x00"]);
+        this.setKwhLeft(0);
+        this.setTimeLeft(0);
+        this.setPrio(0);
+        this.nbKwh = 0;
+        this.timeP = 0;
     }
 
 }
