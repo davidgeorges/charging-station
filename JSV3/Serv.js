@@ -314,8 +314,8 @@ class Server {
                                 dataR.status = "brokenDown";
                             }
 
-                            console.log("From Serv.js [317] : ",dataR)
-                            
+                            console.log("From Serv.js [317] : ", dataR)
+
                             //Selon le satus de l'erreur
                             var fromStatus = (statusR) => {
                                 var inputs = {
@@ -328,6 +328,7 @@ class Server {
                                         console.log("Broken")
                                         //Cette méthode permet d'enlever la trame tu tableau à lire et de l'insérer dans le tableau des trames non fonctionnelles
                                         self.fromTabToReadToTabError(index, whoIsWriting, indexTerminal)
+                                        self.tabTerminal[indexTerminal].resetEveryData();
                                     },
                                 }
                                 inputs[statusR]();
@@ -362,7 +363,7 @@ class Server {
                     }
                     console.log("---------------------------------------")
                 } else {
-                   // console.log("From Serv.js [311] : Error not writing.")
+                    // console.log("From Serv.js [311] : Error not writing.")
                 }
             }
             // console.log("---------------------------------------")
