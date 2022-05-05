@@ -46,7 +46,7 @@ function changeB(dataR) {
    var copyKwRemaining;
    var copyKwToUse;
    var copyEstimationTime;
-   
+
    switch (dataR[0]) {
       case '0x0b':
          copyAdrTerminal = adrTerminal1
@@ -73,10 +73,10 @@ function changeB(dataR) {
          break;
    }
 
-   setStatus(dataR[4],copyStatusTerminal);
-   setPower(dataR[1],copyKwToUse)
-   setKwhLeft(dataR[2],copyKwRemaining)
-   setTimeLeft(dataR[3],copyEstimationTime)
+   setStatus(dataR[4], copyStatusTerminal);
+   setPower(dataR[1], copyKwToUse)
+   setKwhLeft(dataR[2], copyKwRemaining)
+   setTimeLeft(dataR[3], copyEstimationTime)
 }
 
 
@@ -125,13 +125,13 @@ function setKwhLeft(valueR, elementR) {
 }
 
 //
-function setTimeLeft(valueR, elementR) {
-      var h = Math.floor(valueR / 60);
+function setTimeLeft(valueR, elementR){
+   var h = Math.floor(valueR / 60);
       var m = valueR % 60;
       h = h < 10 ? '0' + h : h; 
       m = m < 10 ? '0' + m : m; 
       var s =  h + ':' + m.toFixed();
-    
+
    elementR.innerHTML = s;
 }
 
