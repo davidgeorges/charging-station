@@ -25,7 +25,7 @@ class Terminal {
 
             rfid: {
                 adr: 0,
-                anyError: false,
+                status: "canBeRead",
                 nbRetry: 0,
                 frame: [],
             },
@@ -33,7 +33,7 @@ class Terminal {
             // Interface
             him: {
                 adr: 0,
-                anyError: false,
+                status: "canBeRead",
                 nbRetry: 0,
                 frame: [],
             },
@@ -44,7 +44,7 @@ class Terminal {
                 voltage: ["0x00", "0x00"],
                 ampere: ["0x00", "0x00"],
                 power: ["0x00", "0x00", "0x00", "0x00"],
-                anyError: false,
+                status: "canBeRead",
                 nbRetry: 0,
                 allFrame: [[], [], [],]
             },
@@ -424,14 +424,14 @@ class Terminal {
     }
 
     //Modifie l'état du module
-    setAnyError(valueR, whoIsWriting) {
-        this.allData[whoIsWriting].anyError = valueR;
+    setStatusModule(valueR, whoIsWriting) {
+        this.allData[whoIsWriting].status = valueR;
         //console.log("changement Error")
     }
 
     //Modifie le nombre d'essaie restant
     setNbRetry(valueR, whoIsWriting) {
-        console.log("Nb retry : ",valueR,"from : ",this.allData.wattMeter.adr)
+        console.log("Nb retry : ", valueR, "from : ", this.allData.wattMeter.adr)
         this.allData[whoIsWriting].nbRetry = valueR;
     }
 
@@ -443,6 +443,13 @@ class Terminal {
                 "0x01": "working",
                 "0x02": "stopped",
                 "0x03": "broken-down",
+                "0x04": "RFID broken-down",
+                "0x05": "RFID-HIM broken-down",
+                "0x06": "WATTMETER broken-down",
+                "0x07": "WATTMETER-HIM broken-down",
+                "0x08": "HIM broken-down",
+                "0x09": "HIM-WATTMETER broken-down",
+                "0x0A": "HIM-RFID broken-down",
             }
             return inputs[val];
         }
@@ -451,10 +458,10 @@ class Terminal {
     }
 
     setKwhGiveHimWeb(valueR) {
-                                         //va convertir la puissance depuis sa valeur HEXA et l'insérer dans le tableau
-        this.allData.himWeb.tabData[0][1] = (parseInt(valueR[0].substring(2)+valueR[1].substring(2), 16)/1000);
+        //va convertir la puissance depuis sa valeur HEXA et l'insérer dans le tableau
+        this.allData.himWeb.tabData[0][1] = (parseInt(valueR[0].substring(2) + valueR[1].substring(2), 16) / 1000);
     }
-    
+
     setKwhLeftHimWeb(valueR) {
         this.allData.himWeb.tabData[0][2] = valueR;
     }
@@ -467,7 +474,7 @@ class Terminal {
         this.allData.himWeb.tabData[0][5] = valueR;
     }
 
-    
+
     //----------------------------- GETTER -----------------------------//
 
     //Renvoie le nombre restant de kw a charger 
@@ -504,7 +511,7 @@ class Terminal {
         return this.allData.him.frame[0];
     }
 
-    getWebHimData(){
+    getWebHimData() {
         return this.allData.himWeb.tabData[0];
     }
 
@@ -519,8 +526,8 @@ class Terminal {
     }
 
     //Renvoie l'état du module
-    getAnyError(whoIsWriting) {
-        return this.allData[whoIsWriting].anyError;
+    getStatusModule(whoIsWriting) {
+        return this.allData[whoIsWriting].status;
 
     }
 
@@ -534,18 +541,24 @@ class Terminal {
         return this.allData.contactor.frame[0][3];
     }
 
-    resetEveryData() {
-        this.setAmpereValue(["0x00","0x00"]);
-        this.setVoltageValue(["0x00","0x00"]);
-        this.setPowerValue(["0x00","0x00","0x00","0x00"]);
-        this.setKwhGive(["0x00","0x00"]);
+     //Modifie l'état du module
+    getStatusModule(whoIsWriting) {
+        return this.allData[whoIsWriting].status;
+        //console.log("changement Error")
+    }
+
+    resetData() {
+        this.setAmpereValue(["0x00", "0x00"]);
+        this.setVoltageValue(["0x00", "0x00"]);
+        this.setPowerValue(["0x00", "0x00", "0x00", "0x00"]);
+        this.setKwhGive(["0x00", "0x00"]);
         this.setKwhLeft(0);
         this.setTimeLeft(0);
         this.setPrio(0);
-        this.switchContactor("OFF")
         this.nbKwh = 0;
         this.timeP = 0;
     }
+
 
 }
 
