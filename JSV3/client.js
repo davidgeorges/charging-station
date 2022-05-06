@@ -41,11 +41,11 @@ socket.on("newValueIhm", (dataR) => {
 
 
 function changeB(dataR) {
-   var copyAdrTerminal;
-   var copyStatusTerminal;
-   var copyKwRemaining;
-   var copyKwToUse;
-   var copyEstimationTime;
+   let copyAdrTerminal;
+   let copyStatusTerminal;
+   let copyKwRemaining;
+   let copyKwToUse;
+   let copyEstimationTime;
 
    switch (dataR[0]) {
       case '0x0b':
@@ -125,14 +125,19 @@ function setKwhLeft(valueR, elementR) {
 }
 
 //
-function setTimeLeft(valueR, elementR){
-   var h = Math.floor(valueR / 60);
-      var m = valueR % 60;
-      h = h < 10 ? '0' + h : h; 
-      m = m < 10 ? '0' + m : m; 
-      var s =  h + ':' + m.toFixed();
+function setTimeLeft(valueR, elementR) {
+   let result;
 
-   elementR.innerHTML = s;
+   let d = Number(valueR);
+   let h = Math.floor(d / 3600);
+   let m = Math.floor(d % 3600 / 60);
+
+   let hDisplay = h > 0 ? h +"h": "";
+   let mDisplay = m > 0 ? m : "0";
+
+   result = hDisplay + mDisplay;
+
+   elementR.innerHTML = result;
 }
 
 

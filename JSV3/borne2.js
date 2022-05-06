@@ -9,11 +9,11 @@ const port = new SerialPort("COM12", {
 });
 
 
-var dataReceive = [];
-var dataHex = [];
+let dataReceive = [];
+let dataHex = [];
 
-var val1;
-var val2;
+let val1;
+let val2;
 
 
 
@@ -27,7 +27,7 @@ port.on("data", (line) => {
     dataReceive = line;
     converTabToHex();
     if (dataHex[0] == "16") {
-        var randomVal = 0;
+        let randomVal = 0;
         switch (dataHex[3]) {
             case '31':
                 randomVal = Math.round(getRandomArbitrary(22220,23000));

@@ -89,10 +89,10 @@ class Terminal {
 
     //Création de tout les trames de la BORNE
     createAllTr() {
-        var crc = [];
-        var indexRest = 0;
-        var stringHex = ""
-        var dataToChange = null;
+        let crc = [];
+        let indexRest = 0;
+        let stringHex = ""
+        let dataToChange = null;
         /* Creation des trames */
         for (let index = 0; index < 3; index++) {
             /* Pour savoir le nombre de mots a lire (01 ou 02)*/
@@ -146,10 +146,10 @@ class Terminal {
     //Calcul du crc et insertion dans le tableau
     createRfidFrame() {
 
-        var adr = this.allData.wattMeter.adr
+        let adr = this.allData.wattMeter.adr
         adr = parseInt(adr, 16) - 20
         adr = adr.toString(16);
-        var stringHex = this.crc16.determineString(adr)
+        let stringHex = this.crc16.determineString(adr)
         this.allData.rfid.frame.push([
             stringHex + (adr.toString()),
             "0x03",
@@ -169,11 +169,11 @@ class Terminal {
     //Création de la trame RFID (avec des valeurs par défaut)
     createHimFrame() {
         //On récupère l'adresse
-        var adr = this.allData.wattMeter.adr
+        let adr = this.allData.wattMeter.adr
         //Ici -10 car tout simplement l'adresse de l'ihm est celle du mesureur -10
         adr = parseInt(adr, 16) - 10
         adr = adr.toString(16);
-        var stringHex = this.crc16.determineString(adr)
+        let stringHex = this.crc16.determineString(adr)
 
         this.allData.him.frame.push([
             stringHex + (adr.toString()),
@@ -214,6 +214,8 @@ class Terminal {
             0,
             //Etat borne
             "waiting RFID",
+            //Pourcentage de charge possible par rapport a la demande
+            0,
         ]);
 
         this.createContactorFrame();
@@ -240,11 +242,11 @@ class Terminal {
 
     //Va éteindre ou allumer le contacteur selon son état actuelle
     switchContactor(valueR) {
-        var crc = [];
-        var newValue;
+        let crc = [];
+        let newValue;
 
-        var switchContactorValue = (valueR) => {
-            var inputs = {
+        let switchContactorValue = (valueR) => {
+            let inputs = {
                 "OFF": () => {
                     console.log("From Terminal.js [233] : Switch contactor OFF");
                     newValue = "0x00";
@@ -273,8 +275,8 @@ class Terminal {
 
     //Va calculer et ajouter le crc dans le tableau
     manageAndAddCrc(tabR) {
-        var crc = [];
-        var stringHex = "";
+        let crc = [];
+        let stringHex = "";
         //Calcul et Ajout CRC16/MODBUS
         crc = this.crc16.calculCRC(tabR, tabR.length)
         for (let lengtOfCrc = 0; lengtOfCrc < crc.length; lengtOfCrc++) {
@@ -285,8 +287,8 @@ class Terminal {
 
     //Va calculer le crc et le renvoyer
     manageCrc(tabR, tabLength) {
-        var crc = [];
-        var stringHex = "";
+        let crc = [];
+        let stringHex = "";
         //Calcul et Ajout CRC16/MODBUS
         crc = this.crc16.calculCRC(tabR, tabLength)
         for (let lengtOfCrc = 0; lengtOfCrc < crc.length; lengtOfCrc++) {
@@ -341,7 +343,7 @@ class Terminal {
 
     //Modification du CRC de la trame ihm
     setCrcHim() {
-        var crc = [];
+        let crc = [];
         //Calcul du crc et ajout manuellement dans la trame
         crc = this.manageCrc(this.allData.him.frame[0], this.allData.him.frame[0].length - 2)
         //Modification des champs CRC du tableau
@@ -435,8 +437,8 @@ class Terminal {
 
     setStatusHimWeb(valueR) {
         //Obj literals (remplace le switch)
-        var getStatus = (val) => {
-            var inputs = {
+        let getStatus = (val) => {
+            let inputs = {
                 "0x00": "waiting RFID",
                 "0x01": "working",
                 "0x02": "stopped",
@@ -459,6 +461,10 @@ class Terminal {
 
     setDurationHimWeb(valueR) {
         this.allData.himWeb.tabData[0][3] = valueR;
+    }
+
+    setPourcentageHimWeb(valueR) {
+        this.allData.himWeb.tabData[0][5] = valueR;
     }
 
     
@@ -536,6 +542,7 @@ class Terminal {
         this.setKwhLeft(0);
         this.setTimeLeft(0);
         this.setPrio(0);
+        this.switchContactor("OFF")
         this.nbKwh = 0;
         this.timeP = 0;
     }

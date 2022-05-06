@@ -1,4 +1,4 @@
-var self = null;
+let self = null;
 
 class Serial {
 
@@ -20,7 +20,7 @@ class Serial {
         /* Calcul crc */
         this.crc16 = require('./CalculCR16')
 
-        /* Var pour créer la connexion */
+        /* let pour créer la connexion */
         this.port = null;
 
         // Données
@@ -149,13 +149,13 @@ class Serial {
 
         self.dataPromise = "";
         //On créer et stock le nombre de bits de donneés
-        var nbDataBits = self.dataReceive[2];
+        let nbDataBits = self.dataReceive[2];
         //On le converti en entier
         nbDataBits = parseInt(nbDataBits);
 
         //Selon le satus de l'erreur
-        var doInstruction = (whoIsWritingR) => {
-            var inputs = {
+        let doInstruction = (whoIsWritingR) => {
+            let inputs = {
                 "rfid": () => { self.dataPromise = self.convertRfidDataToString(self.dataReceive) },
                 "wattMeter": () => {
                     //On récupère tout les bits de donneés
@@ -177,12 +177,12 @@ class Serial {
 
     /* Conversion des données de la carte RFID reçu */
     convertRfidDataToString(str1) {
-        var hex = "";
+        let hex = "";
         for (let index = 4; index <= 10; index += 2) {
             hex += str1[index].toString(16);
         }
-        var str = '';
-        for (var n = 0; n < hex.length; n += 2) {
+        let str = '';
+        for (let n = 0; n < hex.length; n += 2) {
             str += String.fromCharCode(parseInt(hex.substring(n, n + 2), 16));
         }
         return str;

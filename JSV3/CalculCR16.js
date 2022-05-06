@@ -4,12 +4,12 @@ function calculCRC(buf, len) {
 
     //console.log("TT ! ",buf)
     // Compute the MODBUS RTU CRC
-    var crc = 0xFFFF;
+    let crc = 0xFFFF;
 
-    for (var pos = 0; pos < len; pos++) {
+    for (let pos = 0; pos < len; pos++) {
         crc ^= buf[pos];          // XOR byte into least sig. byte of crc
 
-        for (var i = 8; i != 0; i--) {    // Loop over each bit
+        for (let i = 8; i != 0; i--) {    // Loop over each bit
             if ((crc & 0x0001) != 0) {      // If the LSB is set
                 crc >>= 1;                    // Shift right and XOR 0xA001
                 crc ^= 0xA001;
@@ -28,7 +28,7 @@ function calculCRC(buf, len) {
             break;
     }
 
-    var data = [];
+    let data = [];
 
     data.push(crc.toString(16).substring(2))
     data.push(crc.toString(16).substring(0, 2))
@@ -64,13 +64,12 @@ function determineString(dataR) {
 
 //Conversion 
 function convertIntoHexa(dataR, whatIsWrittenR) {
-    var finalValue = [];
-    var nbByte;
-    var stringHex = " ";
-
+    let finalValue = [];
+    let nbByte;
+    let stringHex = " ";
     //Selon le satus de l'erreur
-    var determineNbByte = (whatIsWrittenR) => {
-        var inputs = {
+    let determineNbByte = (whatIsWrittenR) => {
+        let inputs = {
             "V": 2,
             "A": 2,
             "kW": 4,
@@ -80,7 +79,6 @@ function convertIntoHexa(dataR, whatIsWrittenR) {
     }
     //On fait appel 
     nbByte = determineNbByte(whatIsWrittenR)
-
     const buf = Buffer.allocUnsafe(nbByte);
     buf.writeIntBE("0x" + dataR, 0, nbByte)
 

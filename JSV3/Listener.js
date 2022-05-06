@@ -1,4 +1,4 @@
-var EventEmitter = require('events').EventEmitter
-var myEmitter = new EventEmitter();
+let EventEmitter = require('events').EventEmitter
+let myEmitter = new EventEmitter();
 
 exports.myEmitter = myEmitter

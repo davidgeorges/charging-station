@@ -201,16 +201,16 @@ class Server {
         console.log("From Serv.js [209] : Checking User in BDD");
         //Utilisation de la méthode readData qui utilise une requête SQL pour lire dans la BDD
         return new Promise((resolve, reject) => {
-            var err = false;
-            var status = " ";
+            let err = false;
+            let status = " ";
             //Si le satus de la 
             if (self.tabTerminal.some(element => element.getAdr("rfid") == valueR.adr && element.getStatus() == "0x00")) {
                 self.db.readData(valueR.data, (dataR) => {
                     /*Si les données ne valent pas nulles,
                       Le code de la carte existe dans la base de données*/
                     //Obj literals
-                    var fromLength = (val) => {
-                        var inputs = {
+                    let fromLength = (val) => {
+                        let inputs = {
                             "-1": function () {
                                 status = "databaseTimeout";
                                 console.log("From Serv.js [ 231 ] : Error bdd timeout.");
@@ -233,7 +233,7 @@ class Server {
                                 /* Modifications des valeurs */
                                 self.tabTerminal[index].setKwh(dataR.data[0].nbKwh);
                                 self.tabTerminal[index].setTimeP(dataR.data[0].timeP);
-                                self.tabTerminal[index].setTimeLeft(dataR.data[0].timeP * 60);
+                                self.tabTerminal[index].setTimeLeft(dataR.data[0].timeP * 3600);
                                 self.tabTerminal[index].setKwhLeft(dataR.data[0].nbKwh);
                                 self.tabTerminal[index].setStatus("0x01");
                                 //On Calcule le coefficient de prioritées et envoie de données
@@ -264,7 +264,9 @@ class Server {
                     }, 100)
                 });
             } else {
-                console.log("From Serial.js [ 216 ] : RFID Already used !");
+                let index = self.findIndex("rfid", valueR.adr)
+
+                console.log("From Serial.js [ 216 ] : RFID Already used !", self.tabTerminal[index]);
                 console.log("---------------------------------------")
             }
         })
@@ -289,13 +291,27 @@ class Server {
                 whoIsWriting = self.tabToRead[index].whoIsWriting
                 //On va chercher l'index de l'initiateur de la trame dans le tableau de bornes
                 indexTerminal = self.findIndex(whoIsWriting, self.tabToRead[index].adr);
-                //Si on n'a pas d'erreur on peut écrire su
+                console.log('Adr : ',indexTerminal,"et ",self.tabToRead[index].adr)
+                //Si on n'a pas d'erreur on peut écrire
                 if (!self.tabTerminal[indexTerminal].getAnyError(whoIsWriting)) {
+                    /*On vérifie si le véhicule du chargement est fini
+                      Si c'est le cas on gère la fin de chargement*/
+                    if (self.tabTerminal[indexTerminal].getKwhLeft() <= 0 && self.tabTerminal[indexTerminal].getStatus()=="0x01") {
+                        await self.disconnectCar(index, indexTerminal)
+                        .then((e) => {
+                           index = 0
+                        })
+                        //Erreur lors de la promesse
+                        .catch((e) => {
+                        });
+                    }
+                    //console.log('T: ', self.tabTerminal[indexTerminal].getKwhLeft())
                     //Si le module qui écrit est l'ihm nous mettons a jour toutes ses valeurs
                     if (whoIsWriting == "ihm") {
                         self.tabTerminal[indexTerminal].setHimValue();
                     }
                     //On écrit et on attend la résolution de la promesse
+                    console.log("Test  2 ",index)
                     await self.mySerial.writeData(self.tabToRead[index].data, whoIsWriting)
                         //Résolution de la promesse avec sucess
                         .then((e) => {
@@ -303,7 +319,6 @@ class Server {
                             //Si on a deja eu des erreurs mais que le module communique actuellement
                             if (self.tabTerminal[indexTerminal].getNbRetry(whoIsWriting) > 0) {
                                 self.tabTerminal[indexTerminal].setNbRetry(0, whoIsWriting);
-                                self.tabTerminal[indexTerminal].setStatus("0x01");
                             }
                         })
                         //Erreur lors de la promesse
@@ -313,12 +328,10 @@ class Server {
                             if (self.tabTerminal[indexTerminal].getNbRetry(whoIsWriting) >= 2) {
                                 dataR.status = "brokenDown";
                             }
-
                             console.log("From Serv.js [317] : ", dataR)
-
                             //Selon le satus de l'erreur
-                            var fromStatus = (statusR) => {
-                                var inputs = {
+                            let fromStatus = (statusR) => {
+                                let inputs = {
                                     "error": () => {
                                         console.log("Timeout")
                                         self.tabTerminal[indexTerminal].setAnyError(true, whoIsWriting)
@@ -342,7 +355,7 @@ class Server {
                     if (dataR.status == "sucess") {
                         switch (whoIsWriting) {
                             case "rfid":
-                                await self.rfidProcessing(whoIsWriting, index, dataR)
+                                await self.rfidProcessing(whoIsWriting, index, indexTerminal, dataR)
                                     .then((result) => {
                                         index = index - 1;
                                     })
@@ -376,11 +389,11 @@ class Server {
     //Selon le nombre de véhicule , on fourni les kW a utilisé (AUTO PAS OK)
     calculKwh(tabPrioR) {
 
-        var tabPrio = tabPrioR;
+        let tabPrio = tabPrioR;
 
         //Obj literals (remplace le switch)
-        var getPourcentage = (val) => {
-            var inputs = {
+        let getPourcentage = (val) => {
+            let inputs = {
                 1: [100],
                 2: [55, 45],
                 3: [38, 34, 28]
@@ -389,14 +402,14 @@ class Server {
         }
 
         //On fait appel 
-        var test = getPourcentage(tabPrio.length)
+        let test = getPourcentage(tabPrio.length)
 
         //Tri croissant du coefficient de priorité
         tabPrio.sort(function (a, b) { return a.prio - b.prio });
 
         //Pour chaque element du tableau on change la valeur des kwh a fournir
         for (const [indexPrio, elementPrio] of tabPrio.entries()) {
-            for (const elementTerminal of self.tabTerminal) {
+            for (var elementTerminal of self.tabTerminal) {
                 if (elementPrio.adr == elementTerminal.getAdr("wattMeter")) {
                     elementTerminal.setKwhGive(self.crc16.convertIntoHexa((test[indexPrio] * 70).toString(16), "kwhGive"));
                     console.log("From Serv.js [405] : New value kwhGive ", elementTerminal.getKwhGive())
@@ -410,15 +423,11 @@ class Server {
     async calcPrio(callback) {
 
         /**/
-        var tabPrio = [{
-            adr: "0x16",
-            prio: 22.3,
-            percentKwh: 0
-        }];
+        let tabPrio = [];
 
         self.tabTerminal.forEach(element => {
             if (element.getStatus() == "0x01") {
-                element.setPrio(Math.round((element.getTimeLeft() / element.getKwhLeft()) * 100) / 100);
+                element.setPrio((Math.round((element.getTimeLeft() / element.getKwhLeft()) * 100) / 100) / 60);
                 console.log("From Serv.js [426] : Caclul de la prio ", element.getPrio());
                 tabPrio.push({
                     adr: element.getAdr("wattMeter"),
@@ -448,9 +457,9 @@ class Server {
             //Création des objets de la classe Terminal
             self.tabTerminal.push(new self.Terminal(stringHex + indexString));
             //Création de la trame RFID
-            self.createRfidFrame(index);
+            self.tabToRead.push(self.createRfidFrame(index));
             //Création de la tram IHM
-            self.createHimFrame(index);
+            self.tabToRead.push(self.createHimFrame(index));
 
         }
         console.log("From Serv.js [518] : Terminal created.")
@@ -496,17 +505,19 @@ class Server {
             });
         }
         //On créer et insére la trame HIM après les trames du mesureur
-        self.createHimFrame(indexTerminal);
+        self.tabToRead.push(self.createHimFrame(indexTerminal));
     }
 
     //On enleve les qui ne sont plus nécéssaire
     removeFromTab(indexR, adrRfidR, whoIsWritingR) {
+        console.log("SS : ",whoIsWritingR)
         switch (whoIsWritingR) {
             //On enleves les trois trames du mesureur
             case "wattMeter":
                 for (let index = 0; index < self.tabToRead.length; index++) {
                     if (self.tabToRead[index].data[0] == self.tabToRead[indexR].data[0]) {
-                        self.tabToRead.splice(index, 1);
+                        self.tabToRead.splice(index, 3);
+                        console.log("SS : ",index,"et",indexR)
                     }
                 }
                 break;
@@ -585,10 +596,10 @@ class Server {
 
     //Pour determiner ce qui est écrit sur la borne Volt , Intensité ou Puissance
     determineWhatIsWritten(adrInstructR) {
-        var whatIsWritten;
+        let whatIsWritten;
         //Selon le satus de l'erreur
-        var determineWhatIsWritten = (adrInstructR) => {
-            var inputs = {
+        let determineWhatIsWritten = (adrInstructR) => {
+            let inputs = {
                 "0x31": () => { whatIsWritten = "V" },
                 "0x39": () => { whatIsWritten = "A" },
                 "0x40": () => { whatIsWritten = "kW" },
@@ -600,10 +611,10 @@ class Server {
     }
 
     //Lorsqu'on reçoits des trames du  rfid
-    async rfidProcessing(whoIsWritingR, indexR, dataR) {
+    async rfidProcessing(whoIsWritingR, indexTabToReadR, indexTerminalR, dataR) {
         return new Promise(async (resolve, reject) => {
-            var promiseValue;
-            var anyError = true;
+            let promiseValue;
+            let anyError = true;
             //Si le RFID répond avec une carte de passé
             if (dataR.data != '\x00\x00') {
                 //Lecture de la bdd avec le code du badge RFID
@@ -611,12 +622,12 @@ class Server {
                     //console.log('561',result)
                     self.io.emit("rfid", {
                         status: "rfid accepted",
-                        adr: self.tabTerminal[indexR].getAdr(whoIsWritingR),
+                        adr: self.tabTerminal[indexTerminalR].getAdr(whoIsWritingR),
                     })
                     //On active le contacteur
-                    self.tabTerminal[indexR].switchContactor("ON")
+                    self.tabTerminal[indexTerminalR].switchContactor("ON")
                     //On supprime la trame RFID du tableau
-                    self.removeFromTab(indexR, dataR.adr, whoIsWritingR)
+                    self.removeFromTab(indexTabToReadR, dataR.adr, whoIsWritingR)
                     promiseValue = 'rifdAccepted'
                     anyError = false;
                 })
@@ -636,10 +647,10 @@ class Server {
 
     //Lorsqu'on reçoits des trames du mesureur
     wattMeterProcessing(dataR, indexR, whatIsWrittenR) {
-        var value = self.crc16.convertIntoHexa(dataR.toString(16), whatIsWrittenR);
+        let value = self.crc16.convertIntoHexa(dataR.toString(16), whatIsWrittenR);
         //Selon le satus de l'erreur
-        var fromWhatIsWritten = (whatIsWrittenR) => {
-            var inputs = {
+        let fromWhatIsWritten = (whatIsWrittenR) => {
+            let inputs = {
                 "V": () => { self.tabTerminal[indexR].setVoltageValue(value) },
                 "A": () => { self.tabTerminal[indexR].setAmpereValue(value) },
                 "kW": () => { self.tabTerminal[indexR].setPowerValue(value) },
@@ -657,38 +668,38 @@ class Server {
 
     //Créer la trame RFID
     createRfidFrame(indexR) {
-        self.tabToRead.push({
+        var obj = {
             whoIsWriting: "rfid",
             data: self.tabTerminal[indexR].getRfidFrame(),
             adr: self.tabTerminal[indexR].getAdr("rfid"),
-        })
+        }
+        return obj
     }
 
     //Créer la trame IHM
     createHimFrame(indexR) {
-        self.tabToRead.push({
+        var obj = {
             whoIsWriting: "him",
             data: self.tabTerminal[indexR].getHimFrame(),
             adr: self.tabTerminal[indexR].getAdr("him"),
-        });
+        }
+        return obj
     }
 
     //Envoie données a l'ihm WEB
     sendWebIhm() {
-        var ihmFrame;
-        var ihmWeb;
-        for (var element of self.tabTerminal) {
+        let ihmFrame;
+        let ihmWeb;
+        for (let element of self.tabTerminal) {
             ihmFrame = element.getHimFrame();
             ihmWeb = element.getWebHimData();
             //Si le status de la borne est en fonctionnement qu'il n'y pas d'erreur sur le mesureur ?
             if (ihmFrame[19] == "0x01" && (element.getNbRetry("wattMeter") <= 0)) {
                 var kwhGive = element.getKwhGive()
-                var kwhLeft = element.getKwhLeft()
-                var timeLeft = element.getTimeLeft();
-                //console.log("T : ",timeLeft,"LA :",ihmFrame[19],element.getNbRetry("wattMeter"))
-                //console.log("calcul kwh est", (parseInt(kwhGive[0].substring(2) + kwhGive[1].substring(2), 16)) / 1000)
+                let kwhLeft = element.getKwhLeft()
+                let timeLeft = element.getTimeLeft();
                 kwhLeft -= (((parseInt(kwhGive[0].substring(2) + kwhGive[1].substring(2), 16)) / 1000) / 3600)
-                timeLeft -= 0.1;
+                timeLeft -= 1;
                 element.setKwhLeft(kwhLeft)
                 element.setTimeLeft(timeLeft.toFixed(2));
                 //console.log("Sending .. ", element.allData.himWeb.tabData)
@@ -697,8 +708,41 @@ class Server {
         }
     }
 
-    disconnectCar() {
+    //Deconnexion d'un véhicule
+    async disconnectCar(indexTabToReadR, indexTerminalR) {
+        return new Promise(async (resolve, reject) => {
+        console.log("From Serv.js [707] : Disco car ",self.tabToRead);
+        //Supression trames mesureur
+        self.removeFromTab(indexTabToReadR, 0, "wattMeter");
+        
+        var adrHim = self.tabTerminal[indexTerminalR].getAdr("him");
+        var indexHimInTabToRead;
+        //On va chercher dans le tableau a lire l'adresse de l'ihm qu'ont veux
+        for (const [index, element] of self.tabToRead.entries()) {
+            //console.log("test",element.data[0],"et ",index)
+            if (element.data[0] == adrHim) {
+                indexHimInTabToRead = index;
+            }
+        }
 
+        //Si l'index de l'adresse HIM est 0 (debut de tableau) on ajoute l'adresse RFID au début du tableau
+        if (indexHimInTabToRead == 0) {
+            self.tabToRead.splice(0, 0, self.createRfidFrame(indexTerminalR));
+        } else {
+            self.tabToRead.splice(indexHimInTabToRead, 0, self.createRfidFrame(indexTerminalR));
+        }
+
+        //Reset Data
+        self.tabTerminal[indexTerminalR].resetEveryData()
+        self.tabTerminal[indexTerminalR].setStatus('0x00')
+
+        //Recalcul prio
+        indexHimInTabToRead = indexTabToReadR-3
+        console.log("From Serv.js [707] : Disco car apres ",self.tabToRead);
+        resolve();
+        
+
+        });
     }
 }
 

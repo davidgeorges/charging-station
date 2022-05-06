@@ -1,8 +1,8 @@
 // Import dependencies
 const SerialPort = require("serialport");
 
-var dataReceive = [];
-var dataHex = [];
+let dataReceive = [];
+let dataHex = [];
 
 
 // Defining the serial port

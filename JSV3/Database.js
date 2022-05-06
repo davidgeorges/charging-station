@@ -15,7 +15,7 @@ class Database {
      * 
      */
     async createConnection(hostR, userR, passwordR, callback) {
-        var anyError = "";
+        let anyError = "";
         this.db = this.mysql.createConnection({
             host: hostR,
             user: userR,
@@ -39,7 +39,7 @@ class Database {
 
     readData(dataToRead, cl) {
 
-        var res = {
+        let res = {
             length : 0,
             data : null,
         }

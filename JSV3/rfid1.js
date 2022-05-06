@@ -1,9 +1,9 @@
 // Import dependencies
 const SerialPort = require("serialport");
-var childProcess = require('child_process');
+let childProcess = require('child_process');
 
-var dataReceive = [];
-var dataHex = [];
+let dataReceive = [];
+let dataHex = [];
 
 
 // Defining the serial port
@@ -26,7 +26,7 @@ port.on("data", (line) => {
             
             port.close((err) => {
                 //Nous éxécutons le script
-                var process = childProcess.fork('./borne1.js');
+                let process = childProcess.fork('./borne1.js');
             })
         });
     }
