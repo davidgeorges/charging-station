@@ -401,6 +401,9 @@ class Terminal {
 
     //Modifie le nombre restant de kw a charger 
     setKwhLeft(valueR) {
+        if(valueR<0){
+            valueR = 0;
+        }
         this.allData.data.kwhLeft = valueR;
         this.setKwhLeftHimWeb(valueR);
     }
