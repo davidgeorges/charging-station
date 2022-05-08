@@ -178,12 +178,6 @@ class Server {
         })
     }
 
-    //On gére la communucation de Socket pour l'ihm WEB
-    manageSocket() {
-        self.io.on('connection', function (socket) {
-        });
-    }
-
     //check si le code RFID est connu dans le BDD et émet a la borne concerné les données ( tps et kWh ) (AUTO OK)
     async checkBdd(valueR) {
         let dataStatus = {
@@ -194,7 +188,7 @@ class Server {
         if (self.tabTerminal.some(element => element.getAdr("rfid") == valueR.adr && element.getStatus() == "0x00")) {
             console.log("From Serv.js [209] : Checking User in BDD");
             await self.db.readData(valueR.data).then((dataR) => {
-                self.fromLength(dataR.length.toString(), dataStatus)
+                self.fromLength(dataR, dataStatus, valueR)
                 return new Promise((resolve, reject) => {
                     if (!dataStatus.err) { resolve(dataStatus.status) }
                     reject((dataStatus.status))
@@ -207,22 +201,17 @@ class Server {
     async emit() {
         let indexTabToRead;
         let indexTerminal;
-        //Va contenir les données reçu lors du resolve ou reject de la promesse
-        let dataR = {};
         let whoIsWriting;
-
         if (self.tabToRead.length) {
             //Nous mettons canEmit a false pour interdire a l'intervalle de rappeler cette méthode
             self.canEmit = false;
-
             for (indexTabToRead = 0; indexTabToRead < self.tabToRead.length; indexTabToRead++) {
                 whoIsWriting = self.tabToRead[indexTabToRead].whoIsWriting
                 //On va chercher l'index de l'initiateur de la trame dans le tableau de bornes
                 indexTerminal = self.findIndex(whoIsWriting, self.tabToRead[indexTabToRead].adr);
                 //Si le status est a ok on peut écrire la trame
                 if (self.tabTerminal[indexTerminal].getStatusModule(whoIsWriting) == "canBeRead") {
-                    /*On vérifie si le véhicule du chargement est fini
-                      Si c'est le cas on gère la fin de chargement*/
+                    //On vérifie si le véhicule du chargement est fini Si c'est le cas on gère la fin de chargement
                     if (self.tabTerminal[indexTerminal].getKwhLeft() <= 0 && self.tabTerminal[indexTerminal].getStatus() == "0x01" && whoIsWriting == "wattMeter") {
                         self.disconnectCar(indexTerminal)
                         self.canEmit = true;
@@ -234,67 +223,32 @@ class Server {
                     }
                     await self.mySerial.writeData(self.tabToRead[indexTabToRead].data, whoIsWriting)
                         //Résolution de la promesse avec sucess
-                        .then((e) => {
-                            dataR = e
+                        .then(async (res) => {
                             //Si on a deja eu des erreurs mais que le module communique actuellement
                             if (self.tabTerminal[indexTerminal].getNbRetry(whoIsWriting) > 0) {
                                 self.tabTerminal[indexTerminal].setNbRetry(0, whoIsWriting);
                             }
+                            self.fromWhoIsWriting(whoIsWriting,res, indexTerminal, self.tabToRead[indexTabToRead].whatIsWritten)
+                            console.log("---------------------------------------");
                         })
-                        .catch((e) => {
-                            dataR = e
+                        .catch((err) => {
                             //Si l'index du nombre d'essais est supérieur ou égal à 2 on met la borne en panne.
                             if (self.tabTerminal[indexTerminal].getNbRetry(whoIsWriting) >= 2) {
-                                dataR.status = "brokenDown";
+                                err.status = "brokenDown";
                             }
-                            
-                            //Selon le satus de l'erreur
-                            let fromStatus = (statusR) => {
-                                let inputs = {
-                                    "error": () => {
-                                        console.log("Timeout")
-                                        self.tabTerminal[indexTerminal].setStatusModule("timeout", whoIsWriting)
-                                        self.emitSetTimeOut(indexTerminal, whoIsWriting)
-                                        console.log("Fin timeout ")
-                                    },
-                                    "brokenDown": () => {
-                                        console.log("Broken")
-                                        //On met le status en panne
-                                        self.brokenDownModule(indexTerminal, whoIsWriting);
-                                    },
-                                }
-                                inputs[statusR]();
-                            }
-
-                            fromStatus(dataR.status)
-
+                            self.fromStatus(err.status, indexTerminal, whoIsWriting)
+                            console.log("From Serv.js [239] : Error brokenDown or Timeout");
+                            console.log("---------------------------------------");
                         })
-                    //Si l'écriture s'est bien déroulé
-                    if (dataR.status == "sucess") {
-                        switch (whoIsWriting) {
-                            case "rfid":
-                                await self.rfidProcessing(indexTerminal, dataR);
-                                break;
-                            case "wattMeter":
-                                self.wattMeterProcessing(dataR.data, indexTerminal, self.tabToRead[indexTabToRead].whatIsWritten)
-                                break;
-                            default:
-                                break;
-                        }
-                    }
                 }
             }
             self.canEmit = true;
-        } else {
-            console.log("From Serv.js [319] : tabToRead is empty error !")
         }
     }
 
     //Selon le nombre de véhicule , on fourni les kW a utilisé (AUTO PAS OK)
     calculKwh(tabPrioR) {
-
         let tabPrio = tabPrioR;
-
         //Obj literals (remplace le switch)
         let getPourcentage = (val) => {
             let inputs = {
@@ -306,7 +260,7 @@ class Server {
         }
 
         //On fait appel 
-        let test = getPourcentage(tabPrio.length)
+        let pourcentage = getPourcentage(tabPrio.length)
 
         //Tri croissant du coefficient de priorité
         tabPrio.sort(function (a, b) { return a.prio - b.prio });
@@ -315,7 +269,7 @@ class Server {
         for (const [indexPrio, elementPrio] of tabPrio.entries()) {
             for (var elementTerminal of self.tabTerminal) {
                 if (elementPrio.adr == elementTerminal.getAdr("wattMeter")) {
-                    elementTerminal.setKwhGive(self.crc16.convertIntoHexa((test[indexPrio] * 70).toString(16), "kwhGive"));
+                    elementTerminal.setKwhGive(self.crc16.convertIntoHexa((pourcentage[indexPrio] * 70).toString(16), "kwhGive"));
                     console.log("From Serv.js [405] : New value kwhGive ", elementTerminal.getKwhGive())
                 }
             }
@@ -400,7 +354,6 @@ class Server {
         let nbRetry = self.tabTerminal[indexR].getNbRetry(whoIsWritingR);
         nbRetry++;
         setTimeout(() => {
-            console.log("Index : ", indexR)
             self.tabTerminal[indexR].setStatusModule("canBeRead", whoIsWritingR);
             self.tabTerminal[indexR].setNbRetry(nbRetry, whoIsWritingR);
         }, 6000)
@@ -489,11 +442,7 @@ class Server {
         });
     }
 
-    /**
-     * 
-     * @param  adrR  adresse du RFID déclencher
-     * @description Va insérer les trames du mesureur
-     */
+    //Insertion des trames du mesureur dans le tableau des trames a lire
     insertWattMeterFrame(indexR) {
         let wattMeterFrame = self.tabTerminal[indexR].getWattMeterFrame();
         /* Pour chaque Trame lié au rfid reçu et qui a été accépter par la borne 
@@ -507,6 +456,7 @@ class Server {
             });
         }
     }
+
     //Envoie données a l'ihm WEB
     sendWebIhm() {
         let ihmFrame;
@@ -544,7 +494,6 @@ class Server {
 
     //Mettre des modules en HS
     brokenDownModule(indexTerminal, whoIsWriting) {
-
         var status;
         let fromWhoIsWritingError = (whoIsWritingR) => {
             let inputs = {
@@ -596,15 +545,16 @@ class Server {
         self.tabTerminal[indexTerminal].resetData();
     }
 
-    fromLength(val, dataR) {
+    //Selon la longueur des données reçu depuis la BDD nous allons modifier des données et ou éxécuter la méthode calcPrioCoeff
+    fromLength(dataR, dataStatusR, valueR) {
         let inputs = {
             "-1": function () {
-                dataR.err = true;
-                dataR.status = "databaseTimeout";
+                dataStatusR.err = true;
+                dataStatusR.status = "databaseTimeout";
             },
             "0": function () {
-                dataR.err = true;
-                dataR.status = "userNotAvailable";
+                dataStatusR.err = true;
+                dataStatusR.status = "userNotAvailable";
             },
             "1": function () {
                 //On Cherche l'index de l'adresse RFID correspondant à celui dans le tableau de bornes
@@ -617,11 +567,42 @@ class Server {
                 self.tabTerminal[index].setStatus("0x01");
                 //On Calcule le coefficient de prioritées et envoie de données
                 self.calcPrioCoeff(() => {
-                    dataR.status = "userAvailable";
+                    dataStatusR.status = "userAvailable";
                 });
             },
         }
-        inputs[val]();
+        inputs[dataR.length.toString()]();
+    }
+
+    //Selon le status reçu on va éxecuter des méthodes
+    fromStatus(statusR, indexTerminalR, whoIsWritingR) {
+        let inputs = {
+            "error": () => {
+                self.tabTerminal[indexTerminalR].setStatusModule("timeout", whoIsWritingR)
+                self.emitSetTimeOut(indexTerminalR, whoIsWritingR)
+            },
+            "brokenDown": () => {
+                console.log("Broken")
+                self.brokenDownModule(indexTerminalR, whoIsWritingR);
+            },
+        }
+        inputs[statusR]();
+    }
+
+    //Selon qui écrit nous éxécutons des méthodes
+    fromWhoIsWriting(whoIsWritingR,res, indexTerminalR, whatIsWrittenR) {
+        let inputs = {
+            "rfid": async () => {
+                await self.rfidProcessing(indexTerminalR, res);
+            },
+            "wattMeter": () => {
+                self.wattMeterProcessing(res.data, indexTerminalR, whatIsWrittenR)
+            },
+            "him" : ()=>{
+                
+            }
+        }
+        inputs[whoIsWritingR]();
     }
 }
 
