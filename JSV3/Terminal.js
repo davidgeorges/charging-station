@@ -434,7 +434,6 @@ class Terminal {
 
     //Modifie le nombre d'essaie restant
     setNbRetry(valueR, whoIsWriting) {
-        console.log("Nb retry : ", valueR, "from : ", this.allData.wattMeter.adr)
         this.allData[whoIsWriting].nbRetry = valueR;
     }
 
