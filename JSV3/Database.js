@@ -14,7 +14,7 @@ class Database {
      *
      * 
      */
-    async createConnection(hostR, userR, passwordR, callback) {
+    createConnection(hostR, userR, passwordR, callback) {
         let anyError = "";
         this.db = this.mysql.createConnection({
             host: hostR,
@@ -37,27 +37,22 @@ class Database {
 
     }
 
-    readData(dataToRead, cl) {
-
-        let res = {
-            length : 0,
-            data : null,
-        }
-
-        this.db.query(`SELECT * FROM db1.user WHERE keyCode = '${dataToRead}'`, function (err, result) {
-            if (err) {
-                res.length =-1
-                console.log("From Database.js : Error while reading data...");
-                console.log("---------------------------------------")
-            } else {
-                res.length = result.length
-                res.data = result
-                //console.log("47 DB",result.length)
-                //console.log("Res : ", result)
-                // console.log("---------------------------------------")
+    async readData(dataToRead) {
+        return new Promise((resolve) => {
+            let res = {
+                length: 0,
+                data: null,
             }
-            cl(res);
-        });
+            this.db.query(`SELECT * FROM db1.user WHERE keyCode = '${dataToRead}'`, function (err, result) {
+                if (err) {
+                    res.length = -1
+                } else {
+                    res.length = result.length
+                    res.data = result
+                }
+                resolve(res);
+            });
+        })
     }
 
 
