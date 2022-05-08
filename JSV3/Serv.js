@@ -193,6 +193,7 @@ class Server {
                     if (!dataStatus.err) { resolve(dataStatus.status) }
                     reject((dataStatus.status))
                 })
+
             })
         }
     }
@@ -228,13 +229,24 @@ class Server {
                             if (self.tabTerminal[indexTerminal].getNbRetry(whoIsWriting) > 0) {
                                 self.tabTerminal[indexTerminal].setNbRetry(0, whoIsWriting);
                             }
-                            self.fromWhoIsWriting(whoIsWriting,res, indexTerminal, self.tabToRead[indexTabToRead].whatIsWritten)
+                            switch (whoIsWriting) {
+                                case "rfid":
+                                    await self.rfidProcessing(indexTerminal, res);
+                                    break;
+                                case "wattMeter":
+                                    self.wattMeterProcessing(res.data, indexTerminal, self.tabToRead[indexTabToRead].whatIsWritten)
+                                    break;
+                                default:
+                                    break;
+                            }
                             console.log("---------------------------------------");
                         })
                         .catch((err) => {
                             //Si l'index du nombre d'essais est supérieur ou égal à 2 on met la borne en panne.
                             if (self.tabTerminal[indexTerminal].getNbRetry(whoIsWriting) >= 2) {
                                 err.status = "brokenDown";
+                            }else{
+                                err.status = "error"
                             }
                             self.fromStatus(err.status, indexTerminal, whoIsWriting)
                             console.log("From Serv.js [239] : Error brokenDown or Timeout");
@@ -278,7 +290,7 @@ class Server {
     }
 
     //Calcul le coefficient de prioritées selon les données (Présence et kW) (AUTO PAS OK)
-    async calcPrioCoeff(callback) {
+    calcPrioCoeff() {
         /**/
         let tabPrio = [];
 
@@ -294,8 +306,6 @@ class Server {
         });
 
         self.calculKwh(tabPrio);
-
-        callback();
     }
 
     //Creation de toute les bornes (AUTO OK) 
@@ -489,7 +499,7 @@ class Server {
         self.tabTerminal[indexTerminalR].setStatusModule("canBeRead", 'rfid');
         self.tabTerminal[indexTerminalR].setStatusModule("dontRead", 'wattMeter');
         //Recalcul prio
-
+        self.calcPrioCoeff()
     }
 
     //Mettre des modules en HS
@@ -508,7 +518,7 @@ class Server {
                 "wattMeter": () => {
                     if (self.tabTerminal[indexTerminal].getNbRetry("him") > 0) {
                         //Rfid ET Mesureur HS
-                        status = "0x7"
+                        status = "0x07"
                     } else {
                         status = "0x06"
                     }
@@ -566,9 +576,8 @@ class Server {
                 self.tabTerminal[index].setKwhLeft(dataR.data[0].nbKwh);
                 self.tabTerminal[index].setStatus("0x01");
                 //On Calcule le coefficient de prioritées et envoie de données
-                self.calcPrioCoeff(() => {
-                    dataStatusR.status = "userAvailable";
-                });
+                self.calcPrioCoeff();
+                dataStatusR.status = "userAvailable";
             },
         }
         inputs[dataR.length.toString()]();
@@ -588,22 +597,8 @@ class Server {
         }
         inputs[statusR]();
     }
+    
 
-    //Selon qui écrit nous éxécutons des méthodes
-    fromWhoIsWriting(whoIsWritingR,res, indexTerminalR, whatIsWrittenR) {
-        let inputs = {
-            "rfid": async () => {
-                await self.rfidProcessing(indexTerminalR, res);
-            },
-            "wattMeter": () => {
-                self.wattMeterProcessing(res.data, indexTerminalR, whatIsWrittenR)
-            },
-            "him" : ()=>{
-                
-            }
-        }
-        inputs[whoIsWritingR]();
-    }
 }
 
 /* Export du module */
