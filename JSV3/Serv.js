@@ -1,3 +1,5 @@
+const { resolve } = require('path');
+
 let self = null;
 
 class Server {
@@ -184,75 +186,21 @@ class Server {
 
     //check si le code RFID est connu dans le BDD et émet a la borne concerné les données ( tps et kWh ) (AUTO OK)
     async checkBdd(valueR) {
-        console.log("From Serv.js [209] : Checking User in BDD");
-        //Utilisation de la méthode readData qui utilise une requête SQL pour lire dans la BDD
-        return new Promise((resolve, reject) => {
-            let err = false;
-            let status = " ";
-            //Si le satus du rfid est en attente et
-            if (self.tabTerminal.some(element => element.getAdr("rfid") == valueR.adr && element.getStatus() == "0x00")) {
-                self.db.readData(valueR.data, (dataR) => {
-                    /*Si les données ne valent pas nulles,
-                      Le code de la carte existe dans la base de données*/
-                    //Obj literals
-                    let fromLength = (val) => {
-                        let inputs = {
-                            "-1": function () {
-                                status = "databaseTimeout";
-                                console.log("From Serv.js [ 231 ] : Error bdd timeout.");
-                                console.log("---------------------------------------");
-                                err = true;
-                                status = "databaseTimeout";
-                            },
-                            "0": function () {
-                                console.log("From Serv.js [ 231 ] : User not available in BDD.");
-                                console.log("---------------------------------------");
-                                err = true;
-                                status = "userNotAvailable";
-                            },
-                            "1": function () {
-                                console.log("From Serv.js [214] : User available in BDD !")
-                                console.log("---------------------------------------")
-                                //On Cherche l'index de l'adresse RFID correspondant à celui dans le tableau de bornes
-                                let index = self.findIndex("rfid", valueR.adr)
-                                /* Modifications des valeurs */
-                                self.tabTerminal[index].setKwh(dataR.data[0].nbKwh);
-                                self.tabTerminal[index].setTimeP(dataR.data[0].timeP);
-                                self.tabTerminal[index].setTimeLeft(dataR.data[0].timeP * 3600);
-                                self.tabTerminal[index].setKwhLeft(dataR.data[0].nbKwh);
-                                self.tabTerminal[index].setStatus("0x01");
-                                //On Calcule le coefficient de prioritées et envoie de données
-                                self.calcPrioCoeff(() => {
-                                    status = "userAvailable";
-                                });
-                            },
-                        }
-                        inputs[val]();
-                    }
-
-                    //Appel object literals ( va éxécuter une fonction selon la longueur de dataR )
-                    fromLength(dataR.length.toString())
-
-                    setTimeout(() => {
-                        //Si il n'y a pas d'erreur
-                        if (!err) {
-                            resolve({
-                                status: status,
-                            });
-                        }
-                        //Si il y a une erreur
-                        else {
-                            reject({
-                                status: status,
-                            });
-                        }
-                    }, 100)
-                });
-            } else {
-                console.log("From Serial.js [ 216 ] : RFID Already used !");
-                console.log("---------------------------------------")
-            }
-        })
+        let dataStatus = {
+            err: false,
+            status: " ",
+        };
+        //Si le satus du rfid est en attente et
+        if (self.tabTerminal.some(element => element.getAdr("rfid") == valueR.adr && element.getStatus() == "0x00")) {
+            console.log("From Serv.js [209] : Checking User in BDD");
+            await self.db.readData(valueR.data).then((dataR) => {
+                self.fromLength(dataR.length.toString(), dataStatus)
+                return new Promise((resolve, reject) => {
+                    if (!dataStatus.err) { resolve(dataStatus.status) }
+                    reject((dataStatus.status))
+                })
+            })
+        }
     }
 
     //Ecriture des trames stocker dans tabToRead
@@ -299,6 +247,7 @@ class Server {
                             if (self.tabTerminal[indexTerminal].getNbRetry(whoIsWriting) >= 2) {
                                 dataR.status = "brokenDown";
                             }
+                            
                             //Selon le satus de l'erreur
                             let fromStatus = (statusR) => {
                                 let inputs = {
@@ -316,6 +265,7 @@ class Server {
                                 }
                                 inputs[statusR]();
                             }
+
                             fromStatus(dataR.status)
 
                         })
@@ -323,9 +273,7 @@ class Server {
                     if (dataR.status == "sucess") {
                         switch (whoIsWriting) {
                             case "rfid":
-                                console.log("avant ");
-                                await self.rfidProcessing(indexTerminal, dataR)
-                                console.log("apres");
+                                await self.rfidProcessing(indexTerminal, dataR);
                                 break;
                             case "wattMeter":
                                 self.wattMeterProcessing(dataR.data, indexTerminal, self.tabToRead[indexTabToRead].whatIsWritten)
@@ -490,40 +438,16 @@ class Server {
 
     //Lorsqu'on reçoits des trames du  rfid
     async rfidProcessing(indexTerminalR, dataR) {
-
-        return new Promise(async (resolve, reject) => {
-            let promiseValue = "rfidAccepted"
-            let anyError = true;
-
-            //Si le RFID répond avec une carte de passé
-            if (dataR.data != '\x00\x00') {
-
-                //Lecture de la bdd avec le code du badge RFID
-                await self.checkBdd(dataR).then((res) => {
-
-                    //On active le contacteur
-                    self.tabTerminal[indexTerminalR].switchContactor("ON")
-
-                    self.tabTerminal[indexTerminalR].setStatusModule("dontRead", "rfid")
-                    self.tabTerminal[indexTerminalR].setStatusModule("canBeRead", "wattMeter")
-
-                    promiseValue = 'rifdAccepted'
-                    anyError = false;
-                })
-                    .catch((err) => {
-                        promiseValue = err;
-                    });
-            } else {
-                promiseValue = { status: "noDataInCard" };
-            }
-
-            if (anyError) {
-                reject(promiseValue)
-            } else {
-                resolve(promiseValue)
-            }
-
-        });
+        //Si le RFID répond avec une carte de passé
+        if (dataR.data != '\x00\x00') {
+            await self.checkBdd(dataR).then((res) => {
+                self.tabTerminal[indexTerminalR].switchContactor("ON")
+                self.tabTerminal[indexTerminalR].setStatusModule("dontRead", "rfid")
+                self.tabTerminal[indexTerminalR].setStatusModule("canBeRead", "wattMeter")
+            }).catch((err) => {
+                console.log("Froms Serv.js [446] : ", err)
+            });
+        }
     }
 
     //Lorsqu'on reçoits des trames du mesureur
@@ -670,6 +594,34 @@ class Server {
         self.tabTerminal[indexTerminal].setStatusModule("broken", "wattMeter")
         self.tabTerminal[indexTerminal].setStatus(status)
         self.tabTerminal[indexTerminal].resetData();
+    }
+
+    fromLength(val, dataR) {
+        let inputs = {
+            "-1": function () {
+                dataR.err = true;
+                dataR.status = "databaseTimeout";
+            },
+            "0": function () {
+                dataR.err = true;
+                dataR.status = "userNotAvailable";
+            },
+            "1": function () {
+                //On Cherche l'index de l'adresse RFID correspondant à celui dans le tableau de bornes
+                let index = self.findIndex("rfid", valueR.adr)
+                /* Modifications des valeurs */
+                self.tabTerminal[index].setKwh(dataR.data[0].nbKwh);
+                self.tabTerminal[index].setTimeP(dataR.data[0].timeP);
+                self.tabTerminal[index].setTimeLeft(dataR.data[0].timeP * 3600);
+                self.tabTerminal[index].setKwhLeft(dataR.data[0].nbKwh);
+                self.tabTerminal[index].setStatus("0x01");
+                //On Calcule le coefficient de prioritées et envoie de données
+                self.calcPrioCoeff(() => {
+                    dataR.status = "userAvailable";
+                });
+            },
+        }
+        inputs[val]();
     }
 }
 
