@@ -1,5 +1,3 @@
-const { resolve } = require('path');
-
 let self = null;
 
 class Server {
@@ -52,7 +50,7 @@ class Server {
         this.io = require("socket.io");
 
         //Tableau des trames a écrire
-        this.tabToRead = []
+        this.tabFrameToRead = []
         //Flag pour permettre de toutes les X secondes d'appeler la fonction méthode emit()
         this.canEmit = true;
         //Va contenir l'interval sur la méthode emit()
@@ -180,36 +178,35 @@ class Server {
 
     //check si le code RFID est connu dans le BDD et émet a la borne concerné les données ( tps et kWh ) (AUTO OK)
     async checkBdd(valueR) {
-        let dataStatus = {
-            err: false,
-            status: " ",
-        };
-        //Si le satus du rfid est en attente et
-        if (self.tabTerminal.some(element => element.getAdr("rfid") == valueR.adr && element.getStatus() == "0x00")) {
-            console.log("From Serv.js [209] : Checking User in BDD");
-            await self.db.readData(valueR.data).then((dataR) => {
-                self.fromLength(dataR, dataStatus, valueR)
-                return new Promise((resolve, reject) => {
-                    if (!dataStatus.err) { resolve(dataStatus.status) }
+        return new Promise(async (resolve, reject) => {
+            let dataStatus = {
+                err: false,
+                status: " ",
+            };
+            //Si le satus du rfid est en attente et
+            if (self.tabTerminal.some(element => element.getAdr("rfid") == valueR.adr && element.getStatus() == "0x00")) {
+                console.log("From Serv.js [209] : Checking User in BDD");
+                await self.db.readData(valueR.data).then((dataR) => {
+                    self.fromLength(dataR, dataStatus, valueR)
+                    if (!dataStatus.err) {resolve(dataR)}
                     reject((dataStatus.status))
                 })
-
-            })
-        }
+            }
+        })
     }
 
-    //Ecriture des trames stocker dans tabToRead
+    //Ecriture des trames stocker dans tabFrameToRead
     async emit() {
-        let indexTabToRead;
+        let indextabFrameToRead;
         let indexTerminal;
         let whoIsWriting;
-        if (self.tabToRead.length) {
+        if (self.tabFrameToRead.length) {
             //Nous mettons canEmit a false pour interdire a l'intervalle de rappeler cette méthode
             self.canEmit = false;
-            for (indexTabToRead = 0; indexTabToRead < self.tabToRead.length; indexTabToRead++) {
-                whoIsWriting = self.tabToRead[indexTabToRead].whoIsWriting
+            for (indextabFrameToRead = 0; indextabFrameToRead < self.tabFrameToRead.length; indextabFrameToRead++) {
+                whoIsWriting = self.tabFrameToRead[indextabFrameToRead].whoIsWriting
                 //On va chercher l'index de l'initiateur de la trame dans le tableau de bornes
-                indexTerminal = self.findIndex(whoIsWriting, self.tabToRead[indexTabToRead].adr);
+                indexTerminal = self.findIndex(whoIsWriting, self.tabFrameToRead[indextabFrameToRead].adr);
                 //Si le status est a ok on peut écrire la trame
                 if (self.tabTerminal[indexTerminal].getStatusModule(whoIsWriting) == "canBeRead") {
                     //On vérifie si le véhicule du chargement est fini Si c'est le cas on gère la fin de chargement
@@ -222,7 +219,7 @@ class Server {
                     if (whoIsWriting == "ihm") {
                         self.tabTerminal[indexTerminal].setHimValue();
                     }
-                    await self.mySerial.writeData(self.tabToRead[indexTabToRead].data, whoIsWriting)
+                    await self.mySerial.writeData(self.tabFrameToRead[indextabFrameToRead].data, whoIsWriting)
                         //Résolution de la promesse avec sucess
                         .then(async (res) => {
                             //Si on a deja eu des erreurs mais que le module communique actuellement
@@ -234,7 +231,7 @@ class Server {
                                     await self.rfidProcessing(indexTerminal, res);
                                     break;
                                 case "wattMeter":
-                                    self.wattMeterProcessing(res.data, indexTerminal, self.tabToRead[indexTabToRead].whatIsWritten)
+                                    self.wattMeterProcessing(res.data, indexTerminal, self.tabFrameToRead[indextabFrameToRead].whatIsWritten)
                                     break;
                                 default:
                                     break;
@@ -245,7 +242,7 @@ class Server {
                             //Si l'index du nombre d'essais est supérieur ou égal à 2 on met la borne en panne.
                             if (self.tabTerminal[indexTerminal].getNbRetry(whoIsWriting) >= 2) {
                                 err.status = "brokenDown";
-                            }else{
+                            } else {
                                 err.status = "error"
                             }
                             self.fromStatus(err.status, indexTerminal, whoIsWriting)
@@ -339,7 +336,7 @@ class Server {
         }
         console.log("From Serv.js [518] : Terminal created.")
         console.log("---------------------------------------");
-        //console.log("T : ",self.tabToRead);
+        //console.log("T : ",self.tabFrameToRead);
     }
 
     //Retrouve l'index de l'element a modifier depuis son adresse (AUTO OK)
@@ -404,9 +401,18 @@ class Server {
         //Si le RFID répond avec une carte de passé
         if (dataR.data != '\x00\x00') {
             await self.checkBdd(dataR).then((res) => {
+
+                self.tabTerminal[indexTerminalR].setKwh(res.data[0].nbKwh);
+                self.tabTerminal[indexTerminalR].setTimeP(res.data[0].timeP);
+                self.tabTerminal[indexTerminalR].setTimeLeft(res.data[0].timeP * 3600);
+                self.tabTerminal[indexTerminalR].setKwhLeft(res.data[0].nbKwh);
+                self.tabTerminal[indexTerminalR].setStatus("0x01");
+                self.calcPrioCoeff();
                 self.tabTerminal[indexTerminalR].switchContactor("ON")
                 self.tabTerminal[indexTerminalR].setStatusModule("dontRead", "rfid")
                 self.tabTerminal[indexTerminalR].setStatusModule("canBeRead", "wattMeter")
+                self.insertPrioFrame("newCar", indexTerminalR);
+
             }).catch((err) => {
                 console.log("Froms Serv.js [446] : ", err)
             });
@@ -436,29 +442,29 @@ class Server {
 
     //Insertion des trames du mesureur dans le tableau des trames a lire
     insertRfidFrame(indexR) {
-        self.tabToRead.push({
+        self.tabFrameToRead.push({
             whoIsWriting: "rfid",
-            data: self.tabTerminal[indexR].getRfidFrame(),
+            data: self.tabTerminal[indexR].getFrame("rfid"),
             adr: self.tabTerminal[indexR].getAdr("rfid"),
         });
     }
 
     //Insertion de la trame IHM dans le tableau des trames a lire
     insertHimFrame(indexR) {
-        self.tabToRead.push({
+        self.tabFrameToRead.push({
             whoIsWriting: "him",
-            data: self.tabTerminal[indexR].getHimFrame(),
+            data: self.tabTerminal[indexR].getFrame("him"),
             adr: self.tabTerminal[indexR].getAdr("him"),
         });
     }
 
     //Insertion des trames du mesureur dans le tableau des trames a lire
     insertWattMeterFrame(indexR) {
-        let wattMeterFrame = self.tabTerminal[indexR].getWattMeterFrame();
+        let wattMeterFrame = self.tabTerminal[indexR].getFrame("wattMeter");
         /* Pour chaque Trame lié au rfid reçu et qui a été accépter par la borne 
            Nous les insérons dans le tableau des trames a lire (wattMeter) */
         for (let index = 0; index < wattMeterFrame.length; index++) {
-            self.tabToRead.push({
+            self.tabFrameToRead.push({
                 whoIsWriting: "wattMeter",
                 data: wattMeterFrame[index],
                 adr: self.tabTerminal[indexR].getAdr("wattMeter"),
@@ -472,7 +478,7 @@ class Server {
         let ihmFrame;
         let ihmWeb;
         for (let element of self.tabTerminal) {
-            ihmFrame = element.getHimFrame();
+            ihmFrame = element.getFrame("him");
             ihmWeb = element.getWebHimData();
             //Si le status de la borne est en fonctionnement qu'il n'y pas d'erreur sur le mesureur ?
             if (ihmFrame[19] == "0x01" && (element.getNbRetry("wattMeter") <= 0)) {
@@ -489,18 +495,6 @@ class Server {
         }
     }
 
-    //Deconnexion d'un véhicule
-    disconnectCar(indexTerminalR) {
-        console.log("From Serv.js [682] : deconnexion véhicule");
-        //Reset Data
-        self.tabTerminal[indexTerminalR].switchContactor("OFF")
-        self.tabTerminal[indexTerminalR].resetData()
-        self.tabTerminal[indexTerminalR].setStatus('0x00')
-        self.tabTerminal[indexTerminalR].setStatusModule("canBeRead", 'rfid');
-        self.tabTerminal[indexTerminalR].setStatusModule("dontRead", 'wattMeter');
-        //Recalcul prio
-        self.calcPrioCoeff()
-    }
 
     //Mettre des modules en HS
     brokenDownModule(indexTerminal, whoIsWriting) {
@@ -567,16 +561,6 @@ class Server {
                 dataStatusR.status = "userNotAvailable";
             },
             "1": function () {
-                //On Cherche l'index de l'adresse RFID correspondant à celui dans le tableau de bornes
-                let index = self.findIndex("rfid", valueR.adr)
-                /* Modifications des valeurs */
-                self.tabTerminal[index].setKwh(dataR.data[0].nbKwh);
-                self.tabTerminal[index].setTimeP(dataR.data[0].timeP);
-                self.tabTerminal[index].setTimeLeft(dataR.data[0].timeP * 3600);
-                self.tabTerminal[index].setKwhLeft(dataR.data[0].nbKwh);
-                self.tabTerminal[index].setStatus("0x01");
-                //On Calcule le coefficient de prioritées et envoie de données
-                self.calcPrioCoeff();
                 dataStatusR.status = "userAvailable";
             },
         }
@@ -597,7 +581,56 @@ class Server {
         }
         inputs[statusR]();
     }
-    
+
+    //Deconnexion d'un véhicule
+    disconnectCar(indexTerminalR) {
+        self.calcPrioCoeff()
+        console.log("From Serv.js [682] : deconnexion véhicule");
+        //Reset Data
+        self.tabTerminal[indexTerminalR].switchContactor("OFF")
+        self.tabTerminal[indexTerminalR].resetData()
+        self.tabTerminal[indexTerminalR].setStatus('0x00')
+        self.tabTerminal[indexTerminalR].setStatusModule("canBeRead", 'rfid');
+        self.tabTerminal[indexTerminalR].setStatusModule("dontRead", 'wattMeter');
+    }
+
+    insertPrioFrame(natS, indexTerminalR) {
+        var findIndexTerminal;
+        var newTabPioFrame = []
+        let inputs = {
+            "newCar": () => {
+                for (let element of self.tabFrameToRead) {
+                    findIndexTerminal = self.findIndex(element.whoIsWriting, element.adr);
+                    if (self.tabTerminal[findIndexTerminal].getStatusModule(element.whoIsWriting) == "0x01") {
+                        //Si il est en chargement on insère la trame nouvelle puissance
+                        newTabPioFrame.push({
+                            whoIsWriting: "rfid",
+                            data: self.tabTerminal[findIndexTerminal].getFrame("rfid"),
+                            adr: self.tabTerminal[findIndexTerminal].getAdr("rfid"),
+                        })
+                    }
+                }
+                //Si il est en chargement on insère la trame nouvelle puissance
+                newTabPioFrame.push({
+                    whoIsWriting: "him",
+                    data: self.tabTerminal[indexTerminalR].getFrame("him"),
+                    adr: self.tabTerminal[indexTerminalR].getAdr("him"),
+                })
+                //Puis la trame contacteur ON
+                newTabPioFrame.push({
+                    whoIsWriting: "contactor",
+                    data: self.tabTerminal[indexTerminalR].getFrame("contactor"),
+                    adr: self.tabTerminal[indexTerminalR].getAdr("him"),
+                })
+
+                //console.log("PRIO FRAME : ",newTabPioFrame)
+            },
+            "discoCar": () => {
+
+            },
+        }
+        inputs[natS]();
+    }
 
 }
 

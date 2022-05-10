@@ -401,7 +401,7 @@ class Terminal {
 
     //Modifie le nombre restant de kw a charger 
     setKwhLeft(valueR) {
-        if(valueR<0){
+        if (valueR < 0) {
             valueR = 0;
         }
         this.allData.data.kwhLeft = valueR;
@@ -513,6 +513,15 @@ class Terminal {
         return this.allData.him.frame[0];
     }
 
+    getFrame(whoIsWriting) {
+        if (whoIsWriting == "wattMeter") { return this.allData.wattMeter.allFrame; }
+        return this.allData[whoIsWriting].frame[0];
+    }
+
+    getContactorFrame() {
+        return this.allData.contactor.frame[0];
+    }
+
     getWebHimData() {
         return this.allData.himWeb.tabData[0];
     }
@@ -543,7 +552,7 @@ class Terminal {
         return this.allData.contactor.frame[0][3];
     }
 
-     //Modifie l'état du module
+    //Modifie l'état du module
     getStatusModule(whoIsWriting) {
         return this.allData[whoIsWriting].status;
         //console.log("changement Error")

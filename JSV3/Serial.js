@@ -140,7 +140,7 @@ class Serial {
                         data: self.dataPromise,
                     });
                 }
-            }, 1500)
+            }, 750)
         })
     }
 
