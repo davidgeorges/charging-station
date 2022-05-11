@@ -120,7 +120,7 @@ class Serial {
         let adr = "";
         self.whoIsWriting = whosWritingR
         return new Promise((resolve, reject) => {
-            console.log("From Serial.js [137] : Ecriture du module", self.whoIsWriting, " adr : ", dataToSend[0])
+            console.log("From Serial.js [137] : Ecriture du module", self.whoIsWriting, " adr : ", dataToSend[0],"trame : ",dataToSend)
             adr = dataToSend[0];
             self.port.write(dataToSend, (err) => {
                 if (err) { console.log("From Serial.js [140] :  ", err) }
@@ -140,7 +140,7 @@ class Serial {
                         data: self.dataPromise,
                     });
                 }
-            }, 750)
+            },5)
         })
     }
 
@@ -167,6 +167,9 @@ class Serial {
                 "him": () => {
                     //console.log("From Serial.js [189] : him data receive.")
                 },
+                "contactor": () => {
+                    //console.log("From Serial.js [189] : him data receive.")
+                },
             }
             inputs[whoIsWritingR]();
         }
@@ -177,8 +180,10 @@ class Serial {
 
     /* Conversion des données de la carte RFID reçu */
     convertRfidDataToString(str1) {
+        console.log("STR : ",str1)
         let hex = "";
         for (let index = 4; index <= 10; index += 2) {
+            console.log("STR : ",str1[index])
             hex += str1[index].toString(16);
         }
         let str = '';

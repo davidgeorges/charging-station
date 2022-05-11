@@ -18,7 +18,7 @@ server.createHttpConnection(() => {
         }else{
             console.log("From Mains.js [22] : Error bdd can't use terminal !")
         }*/
-        server.createAllTerminal(2)
+        server.createAllTerminal(3)
         server.createEmitInteval();
         server.createWebEmitInteval();
 

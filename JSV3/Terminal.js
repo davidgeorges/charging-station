@@ -54,6 +54,7 @@ class Terminal {
                 kwhGive: ["0x00", "0x00"], //kW fourni pour la charge
                 timeLeft: 0, // (Temps restant possible en charge) temps écouler - temps de présence
                 prio: 0, // Coefficient  de priorité
+                timer : 0,
             },
 
             contactor: {
@@ -308,7 +309,7 @@ class Terminal {
         this.setCrcHim();
     }
 
-    //Modification des volts au niveau de la trame ihm
+    //Modification de l'intensité au niveau de la trame ihm
     setAmpereHim(valueR) {
         //Changement Ampère
         this.allData.him.frame[0][14] = valueR[0]
