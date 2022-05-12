@@ -5,10 +5,7 @@ class Terminal {
     constructor(addressR) {
 
         /* Import module */
-        this.crc16 = require('./CalculCR16')
-
-        this.emitter = require('./Listener');
-        this.myEmitter = this.emitter.myEmitter
+        this.crc16 = require('./calculCR16')
 
         // Adresse de l'instructions MODBUS ( 03 = lire )
         this.listInstructions = [0x03, 0x10];
@@ -242,7 +239,7 @@ class Terminal {
     }
 
     //Va éteindre ou allumer le contacteur selon son état actuelle
-    switchContactor(valueR) {
+    setContactor(valueR) {
         let crc = [];
         let newValue;
 
@@ -297,6 +294,49 @@ class Terminal {
             crc[lengtOfCrc] = stringHex + crc[lengtOfCrc];
         }
         return crc
+    }
+
+    resetData() {
+        this.setAmpereValue(["0x00", "0x00"]);
+        this.setVoltageValue(["0x00", "0x00"]);
+        this.setPowerValue(["0x00", "0x00", "0x00", "0x00"]);
+        this.setKwhGive(["0x00", "0x00"]);
+        this.setKwhLeft(0);
+        this.setTimeLeft(0);
+        this.setPrio(0);
+        this.nbKwh = 0;
+        this.timeP = 0;
+    }
+
+    connectCar(kwhR,timePR,timeLeftR,kwhLeftR,statusR,contactorR,statusRfidR,statusWattMeterR){
+        this.setKwh(kwhR);
+        this.setTimeP(timePR);
+        this.setTimeLeft(timeLeftR);
+        this.setKwhLeft(kwhLeftR)
+        this.setStatus(statusR);
+        this.setContactor(contactorR)
+        this.setStatusModule(statusRfidR,"rfid");
+        this.setStatusModule(statusWattMeterR,"wattMeter")
+    }
+
+    disconnectCar(statusR,statusRfidR,statusWattMeterR,contactorR){
+        this.resetData();
+        this.setStatus(statusR);
+        this.setStatusModule(statusRfidR,"rfid");
+        this.setStatusModule(statusWattMeterR,"wattMeter");
+        this.setContactor(contactorR);
+
+    }
+
+    brokenDown(statusR){
+       this.setStatusModule("broken", "rfid");
+       this.setStatusModule("broken", "wattMeter");
+       this.setStatus(statusR);
+       this.resetData();
+    }
+
+    startTimer(){
+
     }
 
     //----------------------------- SETTER -----------------------------//
@@ -559,17 +599,7 @@ class Terminal {
         //console.log("changement Error")
     }
 
-    resetData() {
-        this.setAmpereValue(["0x00", "0x00"]);
-        this.setVoltageValue(["0x00", "0x00"]);
-        this.setPowerValue(["0x00", "0x00", "0x00", "0x00"]);
-        this.setKwhGive(["0x00", "0x00"]);
-        this.setKwhLeft(0);
-        this.setTimeLeft(0);
-        this.setPrio(0);
-        this.nbKwh = 0;
-        this.timeP = 0;
-    }
+
 
 
 }

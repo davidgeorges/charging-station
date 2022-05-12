@@ -13,12 +13,8 @@ class Serial {
         /* Config */
         this.dotenv = require('dotenv').config()
 
-        /* Events */
-        this.emitter = require('./Listener');
-        this.myEmitter = this.emitter.myEmitter
-
         /* Calcul crc */
-        this.crc16 = require('./CalculCR16')
+        this.crc16 = require('./calculCR16')
 
         /* let pour créer la connexion */
         this.port = null;
