@@ -1,3 +1,5 @@
+const { log } = require('console');
+
 let self = null;
 
 class Server {
@@ -162,7 +164,15 @@ class Server {
         });
     }
 
-    //Envoie des fichier en réponse a la requête utilisateur
+
+
+    /**
+     * Va répondre a la requête utilisateur
+     * @param res Réponse de la requête
+     * @param type Type du fichier a envoyer (html / javascript / image )
+     * @param encoding L'encodage du fichier (utf-8 / base 64)
+     * @param fichier  Nom ou Emplacement du fichier
+     */
     sendFile(res, type, encoding, fichier) {
         self.fs.readFile(`./${fichier}`, encoding, (err, content) => {
             if (err) throw err;
@@ -172,8 +182,13 @@ class Server {
         })
     }
 
-    //check si le code RFID est connu dans le BDD et émet a la borne concerné les données ( tps et kWh ) (AUTO OK)
+    /**
+     * Va vérifier si le code RFID est connu dans le BDD et si oui va resolve la promesse avec comme données le temps de présence de l'utilisateur et les kw demandées,
+     * sinon on reject avec l'erreur
+     * @param valueR objet avec le status de l'écriture de la trame,l'adresse du Rfid qui a écrit la trame et le code de la carte {status: "succes", adr: '0x02", data: "CA84"}
+     */
     async checkBdd(valueR) {
+        console.log("Test ", valueR)
         return new Promise(async (resolve, reject) => {
             let dataStatus = {
                 err: false,
@@ -183,7 +198,7 @@ class Server {
             if (self.tabTerminal.some(element => element.getAdr("rfid") == valueR.adr && element.getStatus() == "0x00")) {
                 console.log("From Serv.js [209] : Checking User in BDD");
                 await self.db.readData(valueR.data).then((dataR) => {
-                    self.fromLength(dataR, dataStatus)
+                    self.fromLength(dataR.length.toString(), dataStatus)
                     if (!dataStatus.err) { resolve(dataR) }
                     reject((dataStatus.status))
                 })
@@ -191,7 +206,9 @@ class Server {
         })
     }
 
-    //Ecriture des trames stocker dans tabFrameToRead
+    /**
+    * Va écrire les trames des différents modules contenu dans le tableau tabFrameToRead
+    */
     async emit() {
         let indextabFrameToRead;
         let indexTerminal;
@@ -255,10 +272,12 @@ class Server {
         }
     }
 
-    //Selon le nombre de véhicule , on fourni les kW a utilisé (AUTO PAS OK)
+    /**
+    * Va calculer selon le coefficient de priorités le kw a utilisé
+    * @param tabPrioR va contenir les coefficients de priorités
+    */
     calculKwh(tabPrioR) {
         let tabPrio = tabPrioR;
-        //Obj literals (remplace le switch)
         let getPourcentage = (val) => {
             let inputs = {
                 1: [100],
@@ -267,8 +286,6 @@ class Server {
             }
             return inputs[val];
         }
-
-        //On fait appel 
         let pourcentage = getPourcentage(tabPrio.length)
 
         //Tri croissant du coefficient de priorité
@@ -278,7 +295,7 @@ class Server {
         for (const [indexPrio, elementPrio] of tabPrio.entries()) {
             for (var elementTerminal of self.tabTerminal) {
                 if (elementPrio.adr == elementTerminal.getAdr("wattMeter")) {
-                    elementTerminal.setKwhGive(self.crc16.convertIntoHexa((pourcentage[indexPrio] * 70).toString(16), "kwhGive"));
+                    elementTerminal.setKwhGive(self.crc16.convertIntoHexaBuffer((pourcentage[indexPrio] * 70).toString(16), "kwhGive"));
                     console.log("From Serv.js [405] : New value kwhGive ", elementTerminal.getKwhGive())
                 }
             }
@@ -286,11 +303,11 @@ class Server {
 
     }
 
-    //Calcul le coefficient de prioritées selon les données (Présence et kW) (AUTO PAS OK)
+    /**
+    * Va calculer le coefficient de priorités par rapport au ratio temps restant et kw restant 
+    */
     calcPrioCoeff() {
-        /**/
         let tabPrio = [];
-
         self.tabTerminal.forEach(element => {
             if (element.getStatus() == "0x01") {
                 element.setPrio(((Math.round((element.getTimeLeft() / element.getKwhLeft()) * 100) / 100) / 60).toFixed(2));
@@ -301,22 +318,25 @@ class Server {
                 })
             }
         });
-
         self.calculKwh(tabPrio);
     }
 
-    //Creation de toute les bornes (AUTO OK) 
+    /**
+    * Va instancier tous les objets de la classe Terminal.js
+    * et insérer les trames RFID,MESUREUR ET IHM dans le tableau des trames a lires.
+    * @param nbBorne Nombre d'objets de bornes à instancier
+    */
     createAllTerminal(nbBorne) {
         let stringHex = "";
         let indexString;
         for (let index = 0; index < nbBorne; index++) {
             indexString = (index + 21);
             indexString = indexString.toString(16)
+
             stringHex = self.crc16.determineString(indexString)
-            //Création des objets de la classe Terminal
+
             self.tabTerminal.push(new self.Terminal(stringHex + indexString));
 
-            //Création et insertion des trames RFID,MESUREUR ET IHM
             self.insertFrame(index, "rfid")
             self.insertFrame(index, "wattMeter")
             self.insertFrame(index, "him");
@@ -328,19 +348,24 @@ class Server {
         }
         console.log("From Serv.js [518] : Terminal created.")
         console.log("---------------------------------------");
-        //console.log("T : ",self.tabFrameToRead);
     }
 
-    //Retrouve l'index de l'element a modifier depuis son adresse (AUTO OK)
-    findIndex(whoIsWritingR, dataR) {
+    /**
+    * Va retrouver l'index de la borne dans le tableau tabTerminal correspondant au module qui veut écrire
+    * @param whoIsWritingR Le nom du module qui écris la trame 
+    * @param adrR Adresse du module qui écris la trame
+    */
+    findIndex(whoIsWritingR, adrR) {
         for (const [index, element] of self.tabTerminal.entries()) {
-            if (element.getAdr(whoIsWritingR) == dataR) {
+            if (element.getAdr(whoIsWritingR) == adrR) {
                 return index
             }
         }
     }
 
-    //Va vérifier si nous pouvons appeler la méthode emit()
+    /**
+    * Va vérifier si nous pouvons appeler la méthode emit()
+    */
     checkIfCanEmit() {
         if (self.canEmit == true) {
             //Nous mettons canEmit a false pour interdire a l'intervalle de rappeler cette méthode
@@ -349,8 +374,11 @@ class Server {
         }
     }
 
-    /* Erreur lors de la réception de données, module ne communique plus.
-       Mise en place d'un timeout pour laisser quelques secondes avant de réessayer */
+    /**
+    * Mise en place d'un timeout pour attendre quelques secondes avant de réessayer l'écriture de la trame
+    * @param indexR Index de l'objet de la classe Terminal.js qui a un problème avec un de ces modules
+    * @param whoIsWritingR Nom du module qui ne communique plus
+    */
     emitSetTimeOut(indexR, whoIsWritingR) {
         let nbRetry = self.tabTerminal[indexR].getNbRetry(whoIsWritingR);
         nbRetry++;
@@ -360,24 +388,30 @@ class Server {
         }, 5000)
     }
 
-    //Va créer l'interval pour emit les trames
+    /**
+    * Création de l'interval sur la méthode checkIfCanEmit()
+    */
     createEmitInteval() {
         if (self.intervalEmitRfid == null) {
-            self.intervalEmitRfid = setInterval(this.checkIfCanEmit, 2500);
+            self.intervalEmitRfid = setInterval(this.checkIfCanEmit, 2000);
         }
     }
 
-    //Va créer l'interval pour emit les trames
+    /**
+    * Création de l'interval sur la méthode sendWebIhm()
+    */
     createWebEmitInteval() {
         if (self.intervalWebIhm == null) {
             self.intervalWebIhm = setInterval(this.sendWebIhm, 1000);
         }
     }
 
-    //Pour determiner ce qui est écrit sur la borne Volt , Intensité ou Puissance
+    /**
+    * Va determiner ce qui est écrit sur la borne Volt , Intensité ou Puissance
+    * @param adrInstructR Adresse de l'instruction 
+    */
     determineWhatIsWritten(adrInstructR) {
         let whatIsWritten;
-        //Selon le satus de l'erreur
         let determineWhatIsWritten = (adrInstructR) => {
             let inputs = {
                 "0x31": () => { whatIsWritten = "V" },
@@ -390,14 +424,16 @@ class Server {
         return whatIsWritten
     }
 
-    //Lorsqu'on reçoits des trames du  rfid
+    /**
+    * Traitement de données lors de la récéption d'une trame RFID
+    * @param indexTerminalR Index de l'objet de la classe Terminal.js qui contient le module rfid qui a écrit
+    * @param dataR objet avec le status de l'écriture de la trame,l'adresse du Rfid qui a écrit la trame et le code de la carte {status: "succes", adr: '0x02", data: "CA84"}
+    */
     async rfidProcessing(indexTerminalR, dataR) {
-
         var newTabPrioFrame = [];
         //Si le RFID répond avec une carte de passé
         if (dataR.data != '\x00\x00') {
             await self.checkBdd(dataR).then(async (res) => {
-
                 self.tabTerminal[indexTerminalR].connectCar(res.data[0].nbKwh, res.data[0].timeP, res.data[0].timeP * 3600,
                     res.data[0].nbKwh, "0x01", "ON", "dontRead", "canBeRead")
                 self.calcPrioCoeff();
@@ -412,15 +448,21 @@ class Server {
 
     }
 
-    //Lorsqu'on reçoits des trames du mesureur
-    wattMeterProcessing(dataR, indexR, whatIsWrittenR) {
-        let value = self.crc16.convertIntoHexa(dataR, whatIsWrittenR);
+    /**
+    * Traitement de données lors de la récéption d'une trame MESUREUR
+    * @param dataR Données reçu en hexa
+    * @param indexTerminalR Index de l'objet de la classe Terminal.js qui contient le module mesureur qui a écrit
+    * @param whatIsWrittenR La nature de la trame écrite (Volt, Ampere, Puissance)
+    */
+    wattMeterProcessing(dataR, indexTerminalR, whatIsWrittenR) {
+        console.log("test ", dataR);
+        let value = self.crc16.convertIntoHexaBuffer(dataR, whatIsWrittenR);
         //Selon le satus de l'erreur
         let fromWhatIsWritten = (whatIsWrittenR) => {
             let inputs = {
-                "V": () => { self.tabTerminal[indexR].setVoltageValue(value) },
-                "A": () => { self.tabTerminal[indexR].setAmpereValue(value) },
-                "kW": () => { self.tabTerminal[indexR].setPowerValue(value) },
+                "V": () => { self.tabTerminal[indexTerminalR].setVoltageValue(value) },
+                "A": () => { self.tabTerminal[indexTerminalR].setAmpereValue(value) },
+                "kW": () => { self.tabTerminal[indexTerminalR].setPowerValue(value) },
             }
             inputs[whatIsWrittenR]();
         }
@@ -428,29 +470,36 @@ class Server {
         fromWhatIsWritten(whatIsWrittenR)
     }
 
-    //Lorsqu'on reçoits des trames de l'ihm
+    /**
+    * Traitement de données lors de la récéption d'une trame IHM
+    */
     himProcessing() {
         console.log("From Serv.js [667] : données envoyer et reçu de l'IHM avec succées");
     }
 
-    insertFrame(indexR, whoIsWritingR) {
+    /**
+    * Insertion des trames dans le tableau des trames a lire (tabFrameToRead)
+    * @param indexTerminalR Index de l'objet de la classe Terminal.js qui contient le module mesureur qui a écrit
+    * @param whoIsWritingR Le nom du module qui écrit
+    */
+    insertFrame(indexTerminalR, whoIsWritingR) {
         let inputs = {
             "rfid": () => {
                 self.tabFrameToRead.push({
                     whoIsWriting: "rfid",
-                    data: self.tabTerminal[indexR].getFrame("rfid"),
-                    adr: self.tabTerminal[indexR].getAdr("rfid"),
+                    data: self.tabTerminal[indexTerminalR].getFrame("rfid"),
+                    adr: self.tabTerminal[indexTerminalR].getAdr("rfid"),
                 });
             },
             "wattMeter": () => {
-                let wattMeterFrame = self.tabTerminal[indexR].getFrame("wattMeter");
+                let wattMeterFrame = self.tabTerminal[indexTerminalR].getFrame("wattMeter");
                 /* Pour chaque Trame lié au rfid reçu et qui a été accépter par la borne 
                    Nous les insérons dans le tableau des trames a lire (wattMeter) */
                 for (let index = 0; index < wattMeterFrame.length; index++) {
                     self.tabFrameToRead.push({
                         whoIsWriting: "wattMeter",
                         data: wattMeterFrame[index],
-                        adr: self.tabTerminal[indexR].getAdr("wattMeter"),
+                        adr: self.tabTerminal[indexTerminalR].getAdr("wattMeter"),
                         whatIsWritten: self.determineWhatIsWritten(wattMeterFrame[index][3])
                     });
                 }
@@ -458,8 +507,8 @@ class Server {
             "him": () => {
                 self.tabFrameToRead.push({
                     whoIsWriting: "him",
-                    data: self.tabTerminal[indexR].getFrame("him"),
-                    adr: self.tabTerminal[indexR].getAdr("him"),
+                    data: self.tabTerminal[indexTerminalR].getFrame("him"),
+                    adr: self.tabTerminal[indexTerminalR].getAdr("him"),
                 });
             },
         }
@@ -467,7 +516,9 @@ class Server {
     }
 
 
-    //Envoie données a l'ihm WEB
+    /**
+    * Envoie des données a l'ihm de la page web par communication SOCKET 
+    */
     sendWebIhm() {
         let ihmFrame;
         let ihmWeb;
@@ -489,13 +540,18 @@ class Server {
         }
     }
 
+    /** 
+    * Va change le satus des modules en HS
+    * @param indexTerminalR Index de l'objet de la classe Terminal.js qui contient le module HS
+    * @param whoIsWritingR Le nom du module qui est HS
+    */
     //Mettre des modules en HS
-    brokenDownModule(indexTerminal, whoIsWriting) {
+    brokenDownModule(indexTerminalR, whoIsWritingR) {
         var status;
         let fromWhoIsWritingError = (whoIsWritingR) => {
             let inputs = {
                 "rfid": () => {
-                    if (self.tabTerminal[indexTerminal].getNbRetry("him") > 0) {
+                    if (self.tabTerminal[indexTerminalR].getNbRetry("him") > 0) {
                         //Rfid ET Mesureur HS
                         status = "0x05"
                     } else {
@@ -503,7 +559,7 @@ class Server {
                     }
                 },
                 "wattMeter": () => {
-                    if (self.tabTerminal[indexTerminal].getNbRetry("him") > 0) {
+                    if (self.tabTerminal[indexTerminalR].getNbRetry("him") > 0) {
                         //Rfid ET Mesureur HS
                         status = "0x07"
                     } else {
@@ -511,11 +567,11 @@ class Server {
                     }
                 },
                 "him": () => {
-                    if (self.tabTerminal[indexTerminal].getNbRetry("rfid") > 0) {
+                    if (self.tabTerminal[indexTerminalR].getNbRetry("rfid") > 0) {
                         //IHM et Rfid HS
                         status = "0x0A"
                     } else {
-                        if (self.tabTerminal[indexTerminal].getNbRetry("wattMeter") > 0) {
+                        if (self.tabTerminal[indexTerminalR].getNbRetry("wattMeter") > 0) {
                             //IHM et Mesureur HS
                             status = "0x09"
                         } else {
@@ -527,19 +583,23 @@ class Server {
             }
             inputs[whoIsWritingR]();
         }
-        fromWhoIsWritingError(whoIsWriting)
-        console.log("From Serv.js [736] : ", whoIsWriting, "HS");
+        fromWhoIsWritingError(whoIsWritingR)
+        console.log("From Serv.js [736] : ", whoIsWritingR, "HS");
 
         //Si l"ihm communique pas
-        if (self.tabTerminal[indexTerminal].getNbRetry("him") > 0 || whoIsWriting == "him") {
-            self.tabTerminal[indexTerminal].setStatusModule("broken", "him")
+        if (self.tabTerminal[indexTerminalR].getNbRetry("him") > 0 || whoIsWriting == "him") {
+            self.tabTerminal[indexTerminalR].setStatusModule("broken", "him")
         }
 
-        self.tabTerminal[indexTerminal].brokenDown()
+        self.tabTerminal[indexTerminalR].brokenDown()
     }
 
-    //Selon la longueur des données reçu depuis la BDD nous allons modifier des données et ou éxécuter la méthode calcPrioCoeff
-    fromLength(dataR, dataStatusR) {
+    /** 
+    * Va changer l'erreur de notre objet et ou on status selon la longueur des données reçu depuis la BDD
+    * @param lengthDataR La longueur des données reçu
+    * @param L'objet qui va contenir l'erreur et le status
+    */
+    fromLength(lengthDataR, dataStatusR) {
         let inputs = {
             "-1": function () {
                 dataStatusR.err = true;
@@ -553,10 +613,15 @@ class Server {
                 dataStatusR.status = "userAvailable";
             },
         }
-        inputs[dataR.length.toString()]();
+        inputs[lengthDataR]();
     }
 
-    //Selon le status reçu on va éxecuter des méthodes
+    /**
+    * Va éxecuter des méthodes selon le status reçu 
+    * @param  statusR Contient l'erreur reçu
+    * @param indexTerminalR Index de l'objet de la classe Terminal.js qui contient le module qui a une erreur
+    * @param whoIsWritingR Le nom du module qui a une erreur
+    */
     fromStatus(statusR, indexTerminalR, whoIsWritingR) {
         let inputs = {
             "error": () => {
@@ -586,6 +651,10 @@ class Server {
     }
 
 
+    /**
+   * Ecriture des trames prioritaires
+   * @param  tabReceive Le tableau des trames prioritaires
+   */
     async writePrioFrame(tabReceive) {
         for (const element of tabReceive) {
             await self.mySerial.writeData(element.data, element.whoIsWriting)
