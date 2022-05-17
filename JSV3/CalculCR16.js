@@ -63,7 +63,7 @@ function determineString(dataR) {
 }
 
 //Conversion 
-function convertIntoHexa(dataR, whatIsWrittenR) {
+function convertIntoHexaBuffer(dataR, whatIsWrittenR) {
     let finalValue = [];
     let nbByte;
     let stringHex = " ";
@@ -92,4 +92,4 @@ function convertIntoHexa(dataR, whatIsWrittenR) {
 
 
 
-module.exports = { calculCRC, determineString, convertIntoHexa }
+module.exports = { calculCRC, determineString, convertIntoHexaBuffer }

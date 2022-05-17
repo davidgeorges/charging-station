@@ -339,6 +339,10 @@ class Terminal {
 
     }
 
+    stopTimer(){
+
+    }
+
     //----------------------------- SETTER -----------------------------//
 
     //Modification des volts au niveau de la trame ihm
