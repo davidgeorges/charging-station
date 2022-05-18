@@ -439,7 +439,6 @@ class Server {
                 self.calcPrioCoeff();
                 self.insertPrioFrame("newCar", indexTerminalR, newTabPrioFrame)
                 self.nbBorneUsed++;
-
                 await self.writePrioFrame(newTabPrioFrame);
             }).catch((err) => {
                 console.log("Froms Serv.js [446] : ", err)
@@ -587,11 +586,11 @@ class Server {
         console.log("From Serv.js [736] : ", whoIsWritingR, "HS");
 
         //Si l"ihm communique pas
-        if (self.tabTerminal[indexTerminalR].getNbRetry("him") > 0 || whoIsWriting == "him") {
+        if (self.tabTerminal[indexTerminalR].getNbRetry("him") > 0 || whoIsWritingR == "him") {
             self.tabTerminal[indexTerminalR].setStatusModule("broken", "him")
         }
 
-        self.tabTerminal[indexTerminalR].brokenDown()
+        self.tabTerminal[indexTerminalR].brokenDown(status)
     }
 
     /** 
