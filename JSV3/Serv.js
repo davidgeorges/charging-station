@@ -438,9 +438,13 @@ class Server {
                     res.data[0].nbKwh, "0x01", "ON", "dontRead", "canBeRead")
                 self.calcPrioCoeff();
                 self.insertPrioFrame("newCar", indexTerminalR, newTabPrioFrame)
-                self.nbBorneUsed++;
+                await self.writePrioFrame(newTabPrioFrame).then((res) => {
+                    console.log("Froms Serv.js [442] : sucess write")
+                    self.nbBorneUsed++;
+                }).catch((err) => {
+                    console.log("Froms Serv.js [445] : fail write")
+                })
 
-                await self.writePrioFrame(newTabPrioFrame);
             }).catch((err) => {
                 console.log("Froms Serv.js [446] : ", err)
             });
@@ -520,24 +524,23 @@ class Server {
     * Envoie des données a l'ihm de la page web par communication SOCKET 
     */
     sendWebIhm() {
-        let ihmFrame;
         let ihmWeb;
         for (let element of self.tabTerminal) {
-            ihmFrame = element.getFrame("him");
-            ihmWeb = element.getWebHimData();
             //Si le status de la borne est en fonctionnement qu'il n'y pas d'erreur sur le mesureur ?
-            if (ihmFrame[19] == "0x01" && (element.getNbRetry("wattMeter") <= 0)) {
+            if (element.getStatus() == "0x01" && (element.getNbRetry("wattMeter") <= 0)) {
                 var kwhGive = element.getKwhGive()
                 let kwhLeft = element.getKwhLeft()
                 let timeLeft = element.getTimeLeft();
                 kwhLeft -= (((parseInt(kwhGive[0].substring(2) + kwhGive[1].substring(2), 16)) / 1000) / 3600)
+
                 timeLeft -= 1;
                 element.setKwhLeft(kwhLeft)
                 element.setTimeLeft(timeLeft.toFixed(2));
-                //console.log("Sending .. ", element.allData.himWeb.tabData)
             }
+            ihmWeb = element.getWebHimData();
             self.io.emit("newValueIhm", ihmWeb)
         }
+
     }
 
     /** 
@@ -587,11 +590,11 @@ class Server {
         console.log("From Serv.js [736] : ", whoIsWritingR, "HS");
 
         //Si l"ihm communique pas
-        if (self.tabTerminal[indexTerminalR].getNbRetry("him") > 0 || whoIsWriting == "him") {
+        if (self.tabTerminal[indexTerminalR].getNbRetry("him") > 0 || whoIsWritingR == "him") {
             self.tabTerminal[indexTerminalR].setStatusModule("broken", "him")
         }
 
-        self.tabTerminal[indexTerminalR].brokenDown()
+        self.tabTerminal[indexTerminalR].brokenDown(status)
     }
 
     /** 
@@ -646,8 +649,12 @@ class Server {
         self.tabTerminal[indexTerminalR].disconnectCar('0x00', "canBeRead", "dontRead", "OFF")
         self.calcPrioCoeff()
         self.insertPrioFrame("discoCar", indexTerminalR, newTabPrioFrame);
-        await self.writePrioFrame(newTabPrioFrame);
-        self.nbBorneUsed--;
+        await self.writePrioFrame(newTabPrioFrame).then((res) => {
+            self.nbBorneUsed--;
+        }).catch((err) => {
+
+        })
+
     }
 
 
@@ -656,18 +663,32 @@ class Server {
    * @param  tabReceive Le tableau des trames prioritaires
    */
     async writePrioFrame(tabReceive) {
-        for (const element of tabReceive) {
-            await self.mySerial.writeData(element.data, element.whoIsWriting)
-        }
+
+        return new Promise(async (resolve, rejet) => {
+            var anyError = false;
+            for (const element of tabReceive) {
+                await self.mySerial.writeData(element.data, element.whoIsWriting)
+                    .then((res) => {
+                        console.log("Froms Serv.js [672] : sucess write")
+                        self.nbBorneUsed++;
+                    }).catch((err) => {
+                        console.log("Froms Serv.js [675] : fail write")
+                    })
+            }
+
+            if (anyError) { rejet(element) }
+            resolve();
+
+        })
     }
 
     /**
     * Insère dans un tableau les trames prioritaires
-    * @param  natS La nature de l'appel Connexion Ou Deconnexion d'un véhicule
+    * @param  natureOfTheCall La nature de l'appel Connexion Ou Deconnexion d'un véhicule
     * @param  indexTerminalR L'index de l'élement du tableau des bornes qui vient se de connecter ou déconnecter
     * @param  newTabPrioFrameR Le tableau des trames prioritaires
     */
-    insertPrioFrame(natS, indexTerminalR, newTabPrioFrameR) {
+    insertPrioFrame(natureOfTheCall, indexTerminalR, newTabPrioFrameR) {
         //Insertion des trames prioritaires
         for (let element of self.tabTerminal) {
             if (element.getStatus() == "0x01" && element.getAdr("rfid") != self.tabTerminal[indexTerminalR].getAdr("rfid")) {
@@ -695,7 +716,7 @@ class Server {
             Trame IHM du véhicule se déconnectant
             Trame Contactor du véhicule se déconnectant
             Trame IHM des autres véhicules (connecter) */
-        if (natS == "discoCar" && self.nbBorneUsed > 1) {
+        if (natureOfTheCall == "discoCar" && self.nbBorneUsed > 1) {
             let contactorFrame = newTabPrioFrameR[newTabPrioFrameR.length - 1];
             newTabPrioFrameR.splice(newTabPrioFrameR.length - 1, newTabPrioFrameR.length - 2);
             newTabPrioFrameR.reverse();

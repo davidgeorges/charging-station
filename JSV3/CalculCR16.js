@@ -74,6 +74,7 @@ function convertIntoHexaBuffer(dataR, whatIsWrittenR) {
             "A": 2,
             "kW": 4,
             "kwhGive": 2,
+            "timer":2,
         }
         return inputs[whatIsWrittenR];
     }
