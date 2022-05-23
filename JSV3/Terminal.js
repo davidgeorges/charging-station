@@ -332,8 +332,12 @@ class Terminal {
     brokenDown(statusR) {
         this.setStatusModule("broken", "rfid");
         this.setStatusModule("broken", "wattMeter");
+        if (this.allData.data.prio>0) {
+            statusR = "0x0B"
+        } else {
+            this.resetData();
+        }
         this.setStatus(statusR);
-        this.resetData();
     }
 
     startTimer() {
@@ -350,7 +354,7 @@ class Terminal {
         this.intervalTimer = null;
     }
 
-  
+
     //----------------------------- SETTER -----------------------------//
 
     //Modification des volts au niveau de la trame ihm
@@ -405,7 +409,7 @@ class Terminal {
 
     //Modification du timer au niveau de la trame ihm
     setTimerHim() {
-        var tabHexa =  this.crc16.convertIntoHexaBuffer(this.allData.data.timer.toString(16),"timer")
+        var tabHexa = this.crc16.convertIntoHexaBuffer(this.allData.data.timer.toString(16), "timer")
         this.allData.him.frame[0][17] = tabHexa[0]
         this.allData.him.frame[0][18] = tabHexa[1];
         this.setCrcHim();
@@ -501,7 +505,6 @@ class Terminal {
     }
 
     setWebHimStatus(valueR) {
-        //Obj literals (remplace le switch)
         let getStatus = (val) => {
             let inputs = {
                 "0x00": "waiting RFID",
@@ -515,11 +518,11 @@ class Terminal {
                 "0x08": "HIM broken-down",
                 "0x09": "HIM-WATTMETER broken-down",
                 "0x0A": "HIM-RFID broken-down",
-                "0x0B": "ERROR waiting RFID",
+                "0x0B": "FATAL ERROR",
+                "0x0C": "CONNECTION REFUSED",
             }
             return inputs[val];
         }
-        //On fait appel 
         this.allData.himWeb.tabData[0][4] = getStatus(valueR);
     }
 

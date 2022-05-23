@@ -438,13 +438,7 @@ class Server {
                     res.data[0].nbKwh, "0x01", "ON", "dontRead", "canBeRead")
                 self.calcPrioCoeff();
                 self.insertPrioFrame("newCar", indexTerminalR, newTabPrioFrame)
-                await self.writePrioFrame(newTabPrioFrame).then((res) => {
-                    console.log("Froms Serv.js [442] : sucess write")
-                    self.nbBorneUsed++;
-                }).catch((err) => {
-                    console.log("Froms Serv.js [445] : fail write")
-                })
-
+                await self.connectCar(indexTerminalR, newTabPrioFrame)
             }).catch((err) => {
                 console.log("Froms Serv.js [446] : ", err)
             });
@@ -657,6 +651,37 @@ class Server {
 
     }
 
+    /**
+    * V
+    * @param  I
+    */
+    async connectCar(indexTerminalR, newTabPrioFrameR) {
+        return new Promise(async (resolve, reject) => {
+            //Si on a une erreur 0B on reject toute connexion
+            for (var element of self.tabTerminal) {
+                if(element.getStatus() == "0x0B"){
+                    self.tabTerminal[indexTerminalR].resetData();
+                    self.tabTerminal[indexTerminalR].setStatus("0x0C")
+                   return reject("FatalError");
+                    
+                }
+            }
+
+            await self.writePrioFrame(newTabPrioFrameR).then((res) => {
+                self.nbBorneUsed++;
+                resolve();
+            })
+            //Si on a un problème d'écriture de trame prioritaire
+            .catch((err) => {
+                if(element.getAdr("him") != self.tabTerminal[indexTerminalR].getAdr("him")){
+                    self.tabTerminal[indexTerminalR].resetData();
+                    self.calcPrioCoeff();
+                }
+                reject("ErrorWriting");
+            })
+        })
+    }
+
 
     /**
    * Ecriture des trames prioritaires
@@ -664,8 +689,7 @@ class Server {
    */
     async writePrioFrame(tabReceive) {
 
-        return new Promise(async (resolve, rejet) => {
-            var anyError = false;
+        return new Promise(async (resolve, reject) => {
             for (const element of tabReceive) {
                 await self.mySerial.writeData(element.data, element.whoIsWriting)
                     .then((res) => {
@@ -673,12 +697,10 @@ class Server {
                         self.nbBorneUsed++;
                     }).catch((err) => {
                         console.log("Froms Serv.js [675] : fail write")
+                        reject(element)
                     })
             }
-
-            if (anyError) { rejet(element) }
             resolve();
-
         })
     }
 

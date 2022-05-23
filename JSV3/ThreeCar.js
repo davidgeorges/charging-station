@@ -18,6 +18,7 @@ const frame1 = [0x01, 0x03, 0x08, 0x00, 0x41, 0x00, 0x34, 0x00, 0x42, 0x00, 0x44
 
 const frame2 = [0x02, 0x03, 0x08, 0x00, 0x43, 0x00, 0x41, 0x00, 0x38, 0x00, 0x34, 0xa2, 0xe3];
 
+const frame3 = [0x03, 0x03, 0x08, 0x00, 0x42, 0x00, 0x47, 0x00, 0x31, 0x00, 0x34, 0xa2, 0xe3];
 
 port.on("data", (line) => {
 
@@ -32,15 +33,21 @@ port.on("data", (line) => {
         port.write(frame2);
     }
 
+    if (dataHex[0] == "3") {
+        port.write(frame3);
+    }
 
-    if (dataHex[0] == "a") {
+
+    if (dataHex[0] == "b") {
         port.write([0x0b, 0x03, 0x00, 0x00, 0x01, 0x2D, 0xDB]);
     }
 
     if (dataHex[0] == "c") {
         port.write([0x0c, 0x03, 0x00, 0x00, 0x01, 0x2D, 0xDB]);
     }
-
+    if (dataHex[0] == "d") {
+        port.write([0x0d, 0x03, 0x00, 0x00, 0x01, 0x2D, 0xDB]);
+    }
 
 
     if (dataHex[0] == "15") {
@@ -107,7 +114,42 @@ port.on("data", (line) => {
             default:
                 break;
         }
+        
+    }
 
+    if (dataHex[0] == "17") {
+        let randomVal = 0;
+        switch (dataHex[3]) {
+            case '31':
+                randomVal = Math.round(getRandomArbitrary(22220, 23000));
+                console.log("VOLT --> ", randomVal);
+                change(randomVal.toString(16))
+                port.write([0x17, 0x03, 0x02, val1, val2, 0xB1, 0xC3]); //227,68 V
+                console.log(dataHex[3]);
+                break;
+            case '39':
+                randomVal = Math.round(getRandomArbitrary(2000, 7800));
+                console.log("CURRENT --> ", randomVal);
+                change(randomVal.toString(16))
+                port.write([0x17, 0x03, 0x04, 0x00, 0x00, val1, val2, 0x67, 0xE6]); //7,857 A
+                console.log(dataHex[3]);
+
+                break;
+            case '40':
+                randomVal = 3500
+                console.log("ACTIVE POWER --> ", randomVal);
+                change(randomVal.toString(16))
+                port.write([0x17, 0x03, 0x04, 0x00, 0x00, val1, val2, 0x2D, 0xDB]);//1,762 kW
+                console.log(dataHex[3]);
+                setTimeout(() => {
+                    console.clear();
+                }, 700)
+                break;
+            default:
+                break;
+        }
+        
+        
 
 
     }
