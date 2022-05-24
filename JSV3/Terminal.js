@@ -332,8 +332,12 @@ class Terminal {
     brokenDown(statusR) {
         this.setStatusModule("broken", "rfid");
         this.setStatusModule("broken", "wattMeter");
+        if (this.allData.data.prio>0) {
+            statusR = "0x0B"
+        } else {
+            this.resetData();
+        }
         this.setStatus(statusR);
-        this.resetData();
     }
 
     startTimer() {
@@ -350,7 +354,6 @@ class Terminal {
         this.intervalTimer = null;
     }
 
-  
     //----------------------------- SETTER -----------------------------//
 
     //Modification des volts au niveau de la trame ihm
@@ -387,7 +390,6 @@ class Terminal {
         this.setCrcHim();
     }
 
-
     //Modifie le nombre de kwh fourni au niveau de la trame ihm ( consigne )
     setKwhGiveHim(valueR) {
         //Changement Consigne courant
@@ -405,7 +407,7 @@ class Terminal {
 
     //Modification du timer au niveau de la trame ihm
     setTimerHim() {
-        var tabHexa =  this.crc16.convertIntoHexaBuffer(this.allData.data.timer.toString(16),"timer")
+        var tabHexa = this.crc16.convertIntoHexaBuffer(this.allData.data.timer.toString(16), "timer")
         this.allData.him.frame[0][17] = tabHexa[0]
         this.allData.him.frame[0][18] = tabHexa[1];
         this.setCrcHim();
@@ -449,7 +451,7 @@ class Terminal {
     setStatus(valueR) {
         this.status = valueR;
         this.setStatusHim(valueR);
-        this.setStatusHimWeb(valueR);
+        this.setWebHimStatus(valueR);
     }
 
     //Modifie le nombre de kw a charger
@@ -468,13 +470,13 @@ class Terminal {
             valueR = 0;
         }
         this.allData.data.kwhLeft = valueR;
-        this.setKwhLeftHimWeb(valueR);
+        this.setWebHimKwhLeft(valueR);
     }
 
     //Modifie le temps restant en charge
     setTimeLeft(valueR) {
         this.allData.data.timeLeft = valueR;
-        this.setDurationHimWeb(valueR);
+        this.setWebHimDuration(valueR);
     }
 
     //Modifie le coefficient de priorité 
@@ -500,8 +502,7 @@ class Terminal {
         this.allData[whoIsWriting].nbRetry = valueR;
     }
 
-    setStatusHimWeb(valueR) {
-        //Obj literals (remplace le switch)
+    setWebHimStatus(valueR) {
         let getStatus = (val) => {
             let inputs = {
                 "0x00": "waiting RFID",
@@ -515,10 +516,11 @@ class Terminal {
                 "0x08": "HIM broken-down",
                 "0x09": "HIM-WATTMETER broken-down",
                 "0x0A": "HIM-RFID broken-down",
+                "0x0B": "FATAL ERROR",
+                "0x0C": "CONNECTION REFUSED",
             }
             return inputs[val];
         }
-        //On fait appel 
         this.allData.himWeb.tabData[0][4] = getStatus(valueR);
     }
 
@@ -527,15 +529,15 @@ class Terminal {
         this.allData.himWeb.tabData[0][1] = (parseInt(valueR[0].substring(2) + valueR[1].substring(2), 16) / 1000);
     }
 
-    setKwhLeftHimWeb(valueR) {
+    setWebHimKwhLeft(valueR) {
         this.allData.himWeb.tabData[0][2] = valueR;
     }
 
-    setDurationHimWeb(valueR) {
+    setWebHimDuration(valueR) {
         this.allData.himWeb.tabData[0][3] = valueR;
     }
 
-    setPourcentageHimWeb(valueR) {
+    setWebHimPourcentage(valueR) {
         this.allData.himWeb.tabData[0][5] = valueR;
     }
 
