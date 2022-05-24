@@ -80,6 +80,9 @@ class Server {
                     case "/index.html":
                         self.sendFile(res, 'text/html', 'utf-8', '../HTML/index.html')
                         break
+                    case "/testPanel.html":
+                        self.sendFile(res, 'text/html', 'utf-8', '../HTML/testPanel.html')
+                        break
                     case "/JSV3/client.js":
                         self.sendFile(res, 'text/javascript', 'utf-8', '../JSV3/client.js')
                         break
@@ -100,6 +103,9 @@ class Server {
                         break
                     case "/CSS/main.css":
                         self.sendFile(res, 'text/html', 'utf-8', '../CSS/main.css')
+                        break
+                    case "/CSS/testPanel.css":
+                        self.sendFile(res, 'text/html', 'utf-8', '../CSS/testPanel.css')
                         break
                     case "/CSS/car.css":
                         self.sendFile(res, 'text/html', 'utf-8', '../CSS/car.css')
@@ -195,7 +201,7 @@ class Server {
                 status: " ",
             };
             //Si le satus du rfid est en attente et
-            if (self.tabTerminal.some(element => element.getAdr("rfid") == valueR.adr && element.getStatus() == "0x00")) {
+            if (self.tabTerminal.some(element => element.getAdr("rfid") == valueR.adr && element.getStatus() == "0x00" || element.getStatus() == "0x0D")) {
                 console.log("From Serv.js [209] : Checking User in BDD");
                 await self.db.readData(valueR.data).then((dataR) => {
                     self.fromLength(dataR.length.toString(), dataStatus)
@@ -443,7 +449,6 @@ class Server {
                 console.log("Froms Serv.js [446] : ", err)
             });
         }
-
     }
 
     /**
@@ -588,7 +593,7 @@ class Server {
             self.tabTerminal[indexTerminalR].setStatusModule("broken", "him")
         }
 
-        self.tabTerminal[indexTerminalR].brokenDown(status)
+        self.tabTerminal[indexTerminalR].brokenDown(status, "broken", "broken")
     }
 
     /** 
@@ -656,14 +661,14 @@ class Server {
     * @param  I
     */
     async connectCar(indexTerminalR, newTabPrioFrameR) {
+
         return new Promise(async (resolve, reject) => {
-            //Si on a une erreur 0B on reject toute connexion
+            //Si on a une erreur 0B et qu'un véhicule veut se connecter on refuse toute connexion
             for (var element of self.tabTerminal) {
-                if(element.getStatus() == "0x0B"){
+                if (element.getStatus() == "0x0B") {
                     self.tabTerminal[indexTerminalR].resetData();
                     self.tabTerminal[indexTerminalR].setStatus("0x0C")
-                   return reject("FatalError");
-                    
+                    return reject("FatalError");
                 }
             }
 
@@ -671,14 +676,13 @@ class Server {
                 self.nbBorneUsed++;
                 resolve();
             })
-            //Si on a un problème d'écriture de trame prioritaire
-            .catch((err) => {
-                if(element.getAdr("him") != self.tabTerminal[indexTerminalR].getAdr("him")){
+                //Si on a un problème d'écriture de trame prioritaire
+                .catch((err) => {
                     self.tabTerminal[indexTerminalR].resetData();
+                    self.tabTerminal[indexTerminalR].brokenDown("0x0D", "canBeRead", "canBeRead")
                     self.calcPrioCoeff();
-                }
-                reject("ErrorWriting");
-            })
+                    reject("ErrorWriting");
+                })
         })
     }
 
@@ -688,16 +692,17 @@ class Server {
    * @param  tabReceive Le tableau des trames prioritaires
    */
     async writePrioFrame(tabReceive) {
-
         return new Promise(async (resolve, reject) => {
             for (const element of tabReceive) {
+                console.log("writePrioFrame", element)
+                this.sleep(700)
                 await self.mySerial.writeData(element.data, element.whoIsWriting)
                     .then((res) => {
                         console.log("Froms Serv.js [672] : sucess write")
                         self.nbBorneUsed++;
                     }).catch((err) => {
                         console.log("Froms Serv.js [675] : fail write")
-                        reject(element)
+                        return reject(element)
                     })
             }
             resolve();
@@ -745,6 +750,14 @@ class Server {
             newTabPrioFrameR.splice(1, 0, contactorFrame);
         }
         return newTabPrioFrameR;
+    }
+
+    sleep(milliseconds) {
+        const date = Date.now();
+        let currentDate = null;
+        do {
+            currentDate = Date.now();
+        } while (currentDate - date < milliseconds);
     }
 
 }

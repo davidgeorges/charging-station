@@ -74,7 +74,7 @@ class Serial {
         self.port.on('open', self.showPortOpen);
         self.port.on('close', self.showPortClose);
         self.port.on('error', self.showError);
-        self.port.on('data', self.newData);
+        self.port.on('data', self.onNewData);
     }
 
     /* --------------------------- FONCTIONS EXECUTER EVENT --------------------------- */
@@ -98,8 +98,8 @@ class Serial {
     }
 
     //
-    newData(dataR) {
-        console.log("From Serial.js [92 ] : Données reçu.", dataR)
+    onNewData(dataR) {
+        console.log("From Serial.js [102 ] : Données reçu.", dataR)
         /* On récupère les données reçu */
         self.dataReceive = dataR;
 
@@ -116,7 +116,7 @@ class Serial {
         let adr = "";
         self.whoIsWriting = whosWritingR
         return new Promise((resolve, reject) => {
-            console.log("From Serial.js [137] : Ecriture du module", self.whoIsWriting, " adr : ", dataToSend[0],"trame : ",dataToSend)
+            console.log("From Serial.js [119] : Ecriture du module", self.whoIsWriting, " adr : ", dataToSend[0],"trame : ",dataToSend)
             adr = dataToSend[0];
             self.port.write(dataToSend, (err) => {
                 if (err) { console.log("From Serial.js [140] :  ", err) }

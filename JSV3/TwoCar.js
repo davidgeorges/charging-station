@@ -3,6 +3,7 @@ const args = process.argv;
 // Import dependencies
 const SerialPort = require("serialport");
 let childProcess = require('child_process');
+const { log } = require("console");
 
 let dataReceive = [];
 let dataHex = [];
@@ -21,11 +22,13 @@ const frame2 = [0x02, 0x03, 0x08, 0x00, 0x43, 0x00, 0x41, 0x00, 0x38, 0x00, 0x34
 
 port.on("data", (line) => {
 
+
+
     dataReceive = line;
     converTabToHex();
-
+    console.log("recu :", dataHex[0]);
     if (dataHex[0] == "1") {
-        port.write(frame1);
+        port.write(frame1); 
     }
 
     if (dataHex[0] == "2") {
@@ -33,7 +36,7 @@ port.on("data", (line) => {
     }
 
 
-    if (dataHex[0] == "a") {
+    if (dataHex[0] == "b") {
         port.write([0x0b, 0x03, 0x00, 0x00, 0x01, 0x2D, 0xDB]);
     }
 
@@ -68,7 +71,6 @@ port.on("data", (line) => {
                 port.write([0x15, 0x03, 0x04, 0x00, 0x00, val1, val2, 0x2D, 0xDB]);//1,762 kW
                 console.log(dataHex[3]);
                 setTimeout(() => {
-                    console.clear();
                 }, 700)
                 break;
             default:
@@ -101,7 +103,6 @@ port.on("data", (line) => {
                 port.write([0x16, 0x03, 0x04, 0x00, 0x00, val1, val2, 0x2D, 0xDB]);//1,762 kW
                 console.log(dataHex[3]);
                 setTimeout(() => {
-                    console.clear();
                 }, 700)
                 break;
             default:

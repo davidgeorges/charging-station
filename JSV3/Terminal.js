@@ -329,9 +329,9 @@ class Terminal {
 
     }
 
-    brokenDown(statusR) {
-        this.setStatusModule("broken", "rfid");
-        this.setStatusModule("broken", "wattMeter");
+    brokenDown(statusR,statusRfidR, statusWattMeterR) {
+        this.setStatusModule(statusRfidR, "rfid");
+        this.setStatusModule(statusWattMeterR, "wattMeter");
         if (this.allData.data.prio>0) {
             statusR = "0x0B"
         } else {
@@ -518,6 +518,7 @@ class Terminal {
                 "0x0A": "HIM-RFID broken-down",
                 "0x0B": "FATAL ERROR",
                 "0x0C": "CONNECTION REFUSED",
+                "0x0D": "Error pls retry",
             }
             return inputs[val];
         }
@@ -617,11 +618,6 @@ class Terminal {
         return this.allData.contactor.frame[0][3];
     }
 
-    //Modifie l'état du module
-    getStatusModule(whoIsWriting) {
-        return this.allData[whoIsWriting].status;
-        //console.log("changement Error")
-    }
 
 
 
