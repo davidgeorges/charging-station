@@ -86,6 +86,9 @@ class Server {
                     case "/JSV3/client.js":
                         self.sendFile(res, 'text/javascript', 'utf-8', '../JSV3/client.js')
                         break
+                    case "/JSV3/testPanel.js":
+                        self.sendFile(res, 'text/javascript', 'utf-8', '../JSV3/testPanel.js')
+                        break
                     case "/JS/Listener":
                         self.sendFile(res, 'text/javascript', 'utf-8', '../JSV3/Listener.js')
                         break
@@ -159,6 +162,8 @@ class Server {
             console.log("---------------------------------------");
             //Création socket.io
             self.io = new self.io.Server(self.app)
+
+
             //Création du port com
             self.mySerial = new self.Serial(
                 self.portCom,
@@ -299,7 +304,7 @@ class Server {
 
         //Pour chaque element du tableau on change la valeur des kwh a fournir
         for (const [indexPrio, elementPrio] of tabPrio.entries()) {
-            for (var elementTerminal of self.tabTerminal) {
+            for (let elementTerminal of self.tabTerminal) {
                 if (elementPrio.adr == elementTerminal.getAdr("wattMeter")) {
                     elementTerminal.setKwhGive(self.crc16.convertIntoHexaBuffer((pourcentage[indexPrio] * 70).toString(16), "kwhGive"));
                     console.log("From Serv.js [405] : New value kwhGive ", elementTerminal.getKwhGive())
@@ -436,7 +441,7 @@ class Server {
     * @param dataR objet avec le status de l'écriture de la trame,l'adresse du Rfid qui a écrit la trame et le code de la carte {status: "succes", adr: '0x02", data: "CA84"}
     */
     async rfidProcessing(indexTerminalR, dataR) {
-        var newTabPrioFrame = [];
+        let newTabPrioFrame = [];
         //Si le RFID répond avec une carte de passé
         if (dataR.data != '\x00\x00') {
             await self.checkBdd(dataR).then(async (res) => {
@@ -527,7 +532,7 @@ class Server {
         for (let element of self.tabTerminal) {
             //Si le status de la borne est en fonctionnement qu'il n'y pas d'erreur sur le mesureur ?
             if (element.getStatus() == "0x01" && (element.getNbRetry("wattMeter") <= 0)) {
-                var kwhGive = element.getKwhGive()
+                let kwhGive = element.getKwhGive()
                 let kwhLeft = element.getKwhLeft()
                 let timeLeft = element.getTimeLeft();
                 kwhLeft -= (((parseInt(kwhGive[0].substring(2) + kwhGive[1].substring(2), 16)) / 1000) / 3600)
@@ -549,7 +554,7 @@ class Server {
     */
     //Mettre des modules en HS
     brokenDownModule(indexTerminalR, whoIsWritingR) {
-        var status;
+        let status;
         let fromWhoIsWritingError = (whoIsWritingR) => {
             let inputs = {
                 "rfid": () => {
@@ -643,7 +648,7 @@ class Server {
     * @param  indexTerminalR L'index de l'élement du tableau des bornes qui vient se de déconnecter
     */
     async disconnectCar(indexTerminalR) {
-        var newTabPrioFrame = [];
+        let newTabPrioFrame = [];
         console.log("From Serv.js [682] : deconnexion véhicule");
         self.tabTerminal[indexTerminalR].disconnectCar('0x00', "canBeRead", "dontRead", "OFF")
         self.calcPrioCoeff()
@@ -664,7 +669,7 @@ class Server {
 
         return new Promise(async (resolve, reject) => {
             //Si on a une erreur 0B et qu'un véhicule veut se connecter on refuse toute connexion
-            for (var element of self.tabTerminal) {
+            for (let element of self.tabTerminal) {
                 if (element.getStatus() == "0x0B") {
                     self.tabTerminal[indexTerminalR].resetData();
                     self.tabTerminal[indexTerminalR].setStatus("0x0C")
