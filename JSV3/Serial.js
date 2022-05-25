@@ -178,15 +178,17 @@ class Serial {
     convertRfidDataToString(str1) {
         console.log("STR : ",str1)
         let hex = "";
-        for (let index = 4; index <= 10; index += 2) {
-            console.log("STR : ",str1[index])
-            hex += str1[index].toString(16);
+        if(str1.length>=13){
+            for (let index = 4; index <= 10; index += 2) {
+                console.log("STR : ",str1[index])
+                hex += str1[index].toString(16);
+            }
+            let str = '';
+            for (let n = 0; n < hex.length; n += 2) {
+                str += String.fromCharCode(parseInt(hex.substring(n, n + 2), 16));
+            }
+            return str;
         }
-        let str = '';
-        for (let n = 0; n < hex.length; n += 2) {
-            str += String.fromCharCode(parseInt(hex.substring(n, n + 2), 16));
-        }
-        return str;
     }
 
 }

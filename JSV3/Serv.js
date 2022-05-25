@@ -89,9 +89,6 @@ class Server {
                     case "/JSV3/testPanel.js":
                         self.sendFile(res, 'text/javascript', 'utf-8', '../JSV3/testPanel.js')
                         break
-                    case "/JS/Listener":
-                        self.sendFile(res, 'text/javascript', 'utf-8', '../JSV3/Listener.js')
-                        break
                     case "/dashboard.html":
                         self.sendFile(res, 'text/html', 'utf-8', '../HTML/dashboard.html')
                         break
@@ -163,7 +160,26 @@ class Server {
             //Création socket.io
             self.io = new self.io.Server(self.app)
 
+            self.io.on("connection", (socket) => {
 
+                socket.on("newSimulationFromPanel", (dataR) => {
+                    self.io.emit("newSimulationFromServ", dataR);
+                    console.log("Reçu du panel");
+                })
+
+                socket.on("disconnectFromPanel", (dataR) => {
+                    self.tabTerminal[dataR.index].setKwhLeft(0);
+                    self.io.emit("newSimulationFromServ", dataR);
+                    console.log("Deco Reçu du panel")
+                })
+
+                socket.on("hardResetFromPanel", (dataR) => {
+                    self.io.emit("newSimulationFromServ", dataR);
+                    self.tabTerminal[dataR.index].resetData(true)
+                    console.log("hardReset Reçu du panel")
+                })
+
+            })
             //Création du port com
             self.mySerial = new self.Serial(
                 self.portCom,
@@ -206,13 +222,15 @@ class Server {
                 status: " ",
             };
             //Si le satus du rfid est en attente et
-            if (self.tabTerminal.some(element => element.getAdr("rfid") == valueR.adr && element.getStatus() == "0x00" || element.getStatus() == "0x0D")) {
+            if (self.tabTerminal.some(element => ( element.getAdr("rfid") == valueR.adr && element.getStatus() == "0x00")  ||(element.getAdr("rfid") == valueR.adr && element.getStatus() == "0x0C" )|(element.getAdr("rfid") == valueR.adr && element.getStatus() == "0x0D" ))) {
                 console.log("From Serv.js [209] : Checking User in BDD");
                 await self.db.readData(valueR.data).then((dataR) => {
                     self.fromLength(dataR.length.toString(), dataStatus)
                     if (!dataStatus.err) { resolve(dataR) }
                     reject((dataStatus.status))
                 })
+            }else{
+                reject();
             }
         })
     }
@@ -232,7 +250,7 @@ class Server {
                 //Si le status est a ok on peut écrire la trame
                 if (self.tabTerminal[indexTerminal].getStatusModule(whoIsWriting) == "canBeRead") {
                     //On vérifie si le véhicule du chargement est fini Si c'est le cas on gère la fin de chargement
-                    if (self.tabTerminal[indexTerminal].getKwhLeft() <= 0 && self.tabTerminal[indexTerminal].getStatus() == "0x01") {
+                    if ((self.tabTerminal[indexTerminal].getKwhLeft() <= 0 && self.tabTerminal[indexTerminal].getStatus() == "0x01")) {
                         console.log("Deco avant 1")
                         await self.disconnectCar(indexTerminal)
                         console.log("Deco avant 2")
@@ -671,8 +689,10 @@ class Server {
             //Si on a une erreur 0B et qu'un véhicule veut se connecter on refuse toute connexion
             for (let element of self.tabTerminal) {
                 if (element.getStatus() == "0x0B") {
-                    self.tabTerminal[indexTerminalR].resetData();
-                    self.tabTerminal[indexTerminalR].setStatus("0x0C")
+                    self.tabTerminal[indexTerminalR].resetData(false);
+                    self.tabTerminal[indexTerminalR].setStatus("0x0C");
+                    self.tabTerminal[indexTerminalR].setStatusModule("canBeRead", "rfid");
+                    self.tabTerminal[indexTerminalR].setStatusModule("dontRead", "wattMeter");
                     return reject("FatalError");
                 }
             }
@@ -683,7 +703,7 @@ class Server {
             })
                 //Si on a un problème d'écriture de trame prioritaire
                 .catch((err) => {
-                    self.tabTerminal[indexTerminalR].resetData();
+                    self.tabTerminal[indexTerminalR].resetData(false);
                     self.tabTerminal[indexTerminalR].brokenDown("0x0D", "canBeRead", "canBeRead")
                     self.calcPrioCoeff();
                     reject("ErrorWriting");
@@ -700,7 +720,6 @@ class Server {
         return new Promise(async (resolve, reject) => {
             for (const element of tabReceive) {
                 console.log("writePrioFrame", element)
-                this.sleep(700)
                 await self.mySerial.writeData(element.data, element.whoIsWriting)
                     .then((res) => {
                         console.log("Froms Serv.js [672] : sucess write")
@@ -757,13 +776,7 @@ class Server {
         return newTabPrioFrameR;
     }
 
-    sleep(milliseconds) {
-        const date = Date.now();
-        let currentDate = null;
-        do {
-            currentDate = Date.now();
-        } while (currentDate - date < milliseconds);
-    }
+
 
 }
 

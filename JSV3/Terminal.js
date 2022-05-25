@@ -295,7 +295,14 @@ class Terminal {
         return crc
     }
 
-    resetData() {
+    resetData(hardReset) {
+        if (hardReset) {
+            this.stopTimer()
+            this.setStatus("0x00");
+            this.setStatusModule("canBeRead", "rfid");
+            this.setStatusModule("dontRead", "wattMeter");
+            this.setContactor("OFF");
+        }
         this.setAmpereValue(["0x00", "0x00"]);
         this.setVoltageValue(["0x00", "0x00"]);
         this.setPowerValue(["0x00", "0x00", "0x00", "0x00"]);
@@ -321,7 +328,7 @@ class Terminal {
 
     disconnectCar(statusR, statusRfidR, statusWattMeterR, contactorR) {
         this.stopTimer()
-        this.resetData();
+        this.resetData(false);
         this.setStatus(statusR);
         this.setStatusModule(statusRfidR, "rfid");
         this.setStatusModule(statusWattMeterR, "wattMeter");
@@ -329,13 +336,13 @@ class Terminal {
 
     }
 
-    brokenDown(statusR,statusRfidR, statusWattMeterR) {
+    brokenDown(statusR, statusRfidR, statusWattMeterR) {
         this.setStatusModule(statusRfidR, "rfid");
         this.setStatusModule(statusWattMeterR, "wattMeter");
-        if (this.allData.data.prio>0) {
+        if (this.allData.data.prio > 0) {
             statusR = "0x0B"
         } else {
-            this.resetData();
+            this.resetData(false);
         }
         this.setStatus(statusR);
     }
@@ -400,7 +407,6 @@ class Terminal {
 
     //Modification du status au niveau de la trame ihm
     setStatusHim(valueR) {
-        //Changement Ampère
         this.allData.him.frame[0][19] = valueR
         this.setCrcHim();
     }
@@ -466,7 +472,7 @@ class Terminal {
 
     //Modifie le nombre restant de kw a charger 
     setKwhLeft(valueR) {
-        if (valueR < 0) {
+        if (valueR <= 0) {
             valueR = 0;
         }
         this.allData.data.kwhLeft = valueR;
