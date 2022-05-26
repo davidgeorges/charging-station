@@ -339,11 +339,6 @@ class Terminal {
     brokenDown(statusR, statusRfidR, statusWattMeterR) {
         this.setStatusModule(statusRfidR, "rfid");
         this.setStatusModule(statusWattMeterR, "wattMeter");
-        if (this.allData.data.prio > 0) {
-            statusR = "0x0B"
-        } else {
-            this.resetData(false);
-        }
         this.setStatus(statusR);
     }
 
@@ -397,13 +392,6 @@ class Terminal {
         this.setCrcHim();
     }
 
-    //Modifie le nombre de kwh fourni au niveau de la trame ihm ( consigne )
-    setKwhGiveHim(valueR) {
-        //Changement Consigne courant
-        this.allData.him.frame[0][8] = valueR[0]
-        this.allData.him.frame[0][9] = valueR[1]
-        this.setCrcHim();
-    }
 
     //Modification du status au niveau de la trame ihm
     setStatusHim(valueR) {
@@ -492,6 +480,7 @@ class Terminal {
 
     //Modifie le nombre de kwh fourni ( consigne )
     setKwhGive(valueR) {
+        console.log("TEST  :",valueR)
         this.allData.data.kwhGive = valueR
         this.setKwhGiveHim(valueR);
         this.setKwhGiveHimWeb(valueR);
@@ -522,9 +511,10 @@ class Terminal {
                 "0x08": "HIM broken-down",
                 "0x09": "HIM-WATTMETER broken-down",
                 "0x0A": "HIM-RFID broken-down",
-                "0x0B": "FATAL ERROR",
-                "0x0C": "CONNECTION REFUSED",
-                "0x0D": "Error pls retry",
+                "0x0B": "FATAL ERROR 1",
+                "0x0C": "FATAL ERROR 2",
+                "0x0E": "CONNECTION REFUSED",
+                "0x0F": "DECONNECTION ERROR",
             }
             return inputs[val];
         }

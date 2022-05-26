@@ -21,5 +21,6 @@ server.createHttpConnection(() => {
         server.createAllTerminal(3)
         server.createEmitInteval();
         server.createWebEmitInteval();
+        server.manageSocket();
     });
 });
