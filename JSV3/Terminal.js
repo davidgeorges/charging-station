@@ -297,12 +297,13 @@ class Terminal {
 
     resetData(hardReset) {
         if (hardReset) {
-            this.stopTimer()
+            
             this.setStatus("0x00");
             this.setStatusModule("canBeRead", "rfid");
             this.setStatusModule("dontRead", "wattMeter");
             this.setContactor("OFF");
-        }
+            this.resetAllNbRetry();
+        }this.stopTimer()
         this.setAmpereValue(["0x00", "0x00"]);
         this.setVoltageValue(["0x00", "0x00"]);
         this.setPowerValue(["0x00", "0x00", "0x00", "0x00"]);
@@ -312,6 +313,12 @@ class Terminal {
         this.setPrio(0);
         this.nbKwh = 0;
         this.timeP = 0;
+    }
+
+    resetAllNbRetry(){
+        this.setNbRetry("0","wattMeter")
+        this.setNbRetry("0","rfid")
+        this.setNbRetry("0","him")
     }
 
     connectCar(kwhR, timePR, timeLeftR, kwhLeftR, statusR, contactorR, statusRfidR, statusWattMeterR) {

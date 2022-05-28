@@ -55,19 +55,6 @@ class Database {
         })
     }
 
-
-    writeData(whereWrite, dataToWrite) {
-
-        this.db.query("INSERT INTO user (name, address) VALUES ('Company Inc', 'Highway 37')", function (err, result) {
-            if (err) throw err;
-            console.log("From Database.js : 1 record inserted");
-            console.log("---------------------------------------")
-        });
-
-    }
-
-
-
 }
 
 /* Export du module */

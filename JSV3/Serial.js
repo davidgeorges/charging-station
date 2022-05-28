@@ -91,7 +91,6 @@ class Serial {
 
     /* Affichage erreur */
     showError(error) {
-
         console.log('From Serial.js : port error --> ' + error);
         console.log("---------------------------------------")
 
@@ -113,11 +112,9 @@ class Serial {
     /* Ecriture de données sur le port (async)*/
     async writeData(dataToSend, whosWritingR) {
         self.newData = false;
-        let adr = "";
         self.whoIsWriting = whosWritingR
         return new Promise((resolve, reject) => {
             console.log("From Serial.js [119] : Ecriture du module", self.whoIsWriting, " adr : ", dataToSend[0],"trame : ",dataToSend)
-            adr = dataToSend[0];
             self.port.write(dataToSend, (err) => {
                 if (err) { console.log("From Serial.js [140] :  ", err) }
             })
@@ -127,12 +124,12 @@ class Serial {
                 if (!self.newData) {
                     reject({
                         status: "error",
-                        adr: adr
+                        adr: dataToSend[0]
                     });
                 } else {
                     resolve({
                         status: "sucess",
-                        adr: adr,
+                        adr: dataToSend[0],
                         data: self.dataPromise,
                     });
                 }
