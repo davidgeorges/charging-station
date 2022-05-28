@@ -889,6 +889,7 @@ class Server {
                         await self.disconnectCar(index).then((res) => { }).catch((err) => { })
                     }
                 }
+                self.calcPrioCoeff();
                 console.log("hardReset Reçu du panel")
             })
 
