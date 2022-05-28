@@ -146,7 +146,7 @@ port.on("data", (line) => {
                 console.log(dataHex[3]);
                 setTimeout(() => {
                     console.clear();
-                }, 700)
+                }, 50)
                 break;
             default:
                 break;

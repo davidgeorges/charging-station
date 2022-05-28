@@ -211,8 +211,6 @@ class Terminal {
             0,
             //Etat borne
             "waiting RFID",
-            //Pourcentage de charge possible par rapport a la demande
-            0,
         ]);
 
         this.createContactorFrame();
