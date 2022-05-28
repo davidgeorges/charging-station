@@ -759,7 +759,7 @@ class Server {
 
         for (const element of self.tabTerminal) {
 
-            if (element.getNbRetry("wattMeter") > 0 || element.getNbRetry("rfid") > 0 || element.getNbRetry("him") > 0) {
+            if (element.getNbRetry("wattMeter") > 0 && element.getKwhGive() >0 || element.getNbRetry("rfid") > 0 && element.getKwhGive() >0 || element.getNbRetry("him") > 0 && element.getKwhGive() >0) {
                 return false
             }
 
