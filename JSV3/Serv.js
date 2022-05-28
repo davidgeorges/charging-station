@@ -423,17 +423,17 @@ class Server {
     */
     determineWhatIsWritten(adrInstructR) {
         let whatIsWritten;
-        let determineWhatIsWritten = (adrInstructR) => {
-            let inputs = {
-                "0x31": () => { whatIsWritten = "V" },
-                "0x39": () => { whatIsWritten = "A" },
-                "0x40": () => { whatIsWritten = "kW" },
-            }
-            inputs[adrInstructR]();
+        let inputs = {
+            "0x31": () => { whatIsWritten = "V" },
+            "0x39": () => { whatIsWritten = "A" },
+            "0x40": () => { whatIsWritten = "kW" },
         }
-        determineWhatIsWritten(adrInstructR)
+        inputs[adrInstructR]();
         return whatIsWritten
     }
+
+
+   
 
     /**
     * Traitement de données lors de la récéption d'une trame RFID
@@ -450,22 +450,15 @@ class Server {
                 /*On sauvegarde le kwh utilisé par les véhicules en chargement;
                 pour contrer un crash lors d'une éventuelle IHM HS lors de la déconnexion d'un véhicule*/
                 let tabSaveAllKwhUsed = self.saveAllKwhUsed()
-                let newIndex = indexTerminalR+1;
-
+                let newIndex = indexTerminalR + 1;
                 if (self.checkIfNoTimetout() && self.checkIfNoFatalError()) {
-
                     self.calcPrioCoeff();
                     self.insertPrioFrame("newCar", indexTerminalR, newTabPrioFrame)
-
                     await self.connectCar(indexTerminalR, newTabPrioFrame, tabSaveAllKwhUsed).then((res) => {
-
                     }).catch((err) => {
-
                         self.io.emit("newSimulationFromServ", { id: "b" + newIndex + "b4" })
                     })
-
                 } else {
-
                     self.tabTerminal[indexTerminalR].resetData(false);
                     self.tabTerminal[indexTerminalR].setStatus("0x0E");
                     self.tabTerminal[indexTerminalR].setStatusModule("canBeRead", "rfid");
@@ -474,17 +467,11 @@ class Server {
                     for (var [index, element2] of self.tabTerminal.entries()) {
                         element2.setKwhGive(tabSaveAllKwhUsed[index])
                     }
-
-                    
                     self.io.emit("newSimulationFromServ", { id: "b" + newIndex + "b4" })
-
                     setTimeout(() => {
                         self.tabTerminal[indexTerminalR].setStatus("0x00");
                     }, 7000)
-
-
                 }
-
             }).catch((err) => {
                 console.log("Froms Serv.js [446] : ", err)
             });
@@ -501,10 +488,10 @@ class Server {
         console.log("test ", dataR);
         let value = self.crc16.convertIntoHexaBuffer(dataR, whatIsWrittenR);
         //On fait appel 
-        self.fromWhatIsWritten(whatIsWrittenR,indexTerminalR,value)
+        self.fromWhatIsWritten(whatIsWrittenR, indexTerminalR, value)
     }
 
-    fromWhatIsWritten = (whatIsWrittenR,indexTerminalR,valueR) => {
+    fromWhatIsWritten = (whatIsWrittenR, indexTerminalR, valueR) => {
         let inputs = {
             "V": () => { self.tabTerminal[indexTerminalR].setVoltageValue(valueR) },
             "A": () => { self.tabTerminal[indexTerminalR].setAmpereValue(valueR) },
@@ -632,7 +619,7 @@ class Server {
         if (self.tabTerminal[indexTerminalR].getNbRetry("him") > 0 || whoIsWritingR == "him") {
             self.tabTerminal[indexTerminalR].setStatusModule("broken", "him")
         }
-
+        
         if (self.tabTerminal[indexTerminalR].getPrio() > 0) {
             status = "0x0B"
         }
