@@ -202,7 +202,7 @@ class Server {
             if (self.tabTerminal.some(element => (element.getAdr("rfid") == valueR.adr && element.getStatus() == "0x00"))) {
                 console.log("From Serv.js [209] : Checking User in BDD");
                 await self.db.readData(valueR.data).then((dataR) => {
-                    self.fromLength(dataR.length.toString(), dataStatus)
+                    self.determineBddError(dataR.length.toString(), dataStatus)
                     if (!dataStatus.err) { resolve(dataR) }
                     reject((dataStatus.status))
                 })
@@ -273,7 +273,7 @@ class Server {
                             } else {
                                 err.status = "error"
                             }
-                            self.fromStatus(err.status, indexTerminal, whoIsWriting)
+                            self.execErrorMethodFomStatus(err.status, indexTerminal, whoIsWriting)
                             console.log("From Serv.js [239] : Error brokenDown or Timeout");
                             console.log("---------------------------------------");
                         })
@@ -433,7 +433,7 @@ class Server {
     }
 
 
-   
+
 
     /**
     * Traitement de données lors de la récéption d'une trame RFID
@@ -577,49 +577,48 @@ class Server {
     //Mettre des modules en HS
     brokenDownModule(indexTerminalR, whoIsWritingR) {
         let status;
-        let fromWhoIsWritingError = (whoIsWritingR) => {
-            let inputs = {
-                "rfid": () => {
-                    if (self.tabTerminal[indexTerminalR].getNbRetry("him") > 0) {
-                        //Rfid ET Mesureur HS
-                        status = "0x05"
+
+        let inputs = {
+            "rfid": () => {
+                if (self.tabTerminal[indexTerminalR].getNbRetry("him") > 0) {
+                    //Rfid ET Mesureur HS
+                    status = "0x05"
+                } else {
+                    status = "0x04"
+                }
+            },
+            "wattMeter": () => {
+                if (self.tabTerminal[indexTerminalR].getNbRetry("him") > 0) {
+                    //Rfid ET Mesureur HS
+                    status = "0x07"
+                } else {
+                    status = "0x06"
+                }
+            },
+            "him": () => {
+                if (self.tabTerminal[indexTerminalR].getNbRetry("rfid") > 0) {
+                    //IHM et Rfid HS
+                    status = "0x0A"
+                } else {
+                    if (self.tabTerminal[indexTerminalR].getNbRetry("wattMeter") > 0) {
+                        //IHM et Mesureur HS
+                        status = "0x09"
                     } else {
-                        status = "0x04"
+                        //IHM HS
+                        status = "0x08"
                     }
-                },
-                "wattMeter": () => {
-                    if (self.tabTerminal[indexTerminalR].getNbRetry("him") > 0) {
-                        //Rfid ET Mesureur HS
-                        status = "0x07"
-                    } else {
-                        status = "0x06"
-                    }
-                },
-                "him": () => {
-                    if (self.tabTerminal[indexTerminalR].getNbRetry("rfid") > 0) {
-                        //IHM et Rfid HS
-                        status = "0x0A"
-                    } else {
-                        if (self.tabTerminal[indexTerminalR].getNbRetry("wattMeter") > 0) {
-                            //IHM et Mesureur HS
-                            status = "0x09"
-                        } else {
-                            //IHM HS
-                            status = "0x08"
-                        }
-                    }
-                },
-            }
-            inputs[whoIsWritingR]();
+                }
+            },
         }
-        fromWhoIsWritingError(whoIsWritingR)
+        inputs[whoIsWritingR]();
+
         console.log("From Serv.js [736] : ", whoIsWritingR, "HS");
 
         //Si l"ihm communique pas
         if (self.tabTerminal[indexTerminalR].getNbRetry("him") > 0 || whoIsWritingR == "him") {
             self.tabTerminal[indexTerminalR].setStatusModule("broken", "him")
         }
-        
+
         if (self.tabTerminal[indexTerminalR].getPrio() > 0) {
             status = "0x0B"
         }
@@ -632,7 +631,7 @@ class Server {
     * @param lengthDataR La longueur des données reçu
     * @param L'objet qui va contenir l'erreur et le status
     */
-    fromLength(lengthDataR, dataStatusR) {
+    determineBddError(lengthDataR, dataStatusR) {
         let inputs = {
             "-1": function () {
                 dataStatusR.err = true;
@@ -655,7 +654,7 @@ class Server {
     * @param indexTerminalR Index de l'objet de la classe Terminal.js qui contient le module qui a une erreur
     * @param whoIsWritingR Le nom du module qui a une erreur
     */
-    fromStatus(statusR, indexTerminalR, whoIsWritingR) {
+    execErrorMethodFomStatus(statusR, indexTerminalR, whoIsWritingR) {
         let inputs = {
             "error": () => {
                 self.tabTerminal[indexTerminalR].setStatusModule("timeout", whoIsWritingR)
