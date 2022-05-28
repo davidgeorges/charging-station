@@ -500,17 +500,17 @@ class Server {
     wattMeterProcessing(dataR, indexTerminalR, whatIsWrittenR) {
         console.log("test ", dataR);
         let value = self.crc16.convertIntoHexaBuffer(dataR, whatIsWrittenR);
-        //Selon le satus de l'erreur
-        let fromWhatIsWritten = (whatIsWrittenR) => {
-            let inputs = {
-                "V": () => { self.tabTerminal[indexTerminalR].setVoltageValue(value) },
-                "A": () => { self.tabTerminal[indexTerminalR].setAmpereValue(value) },
-                "kW": () => { self.tabTerminal[indexTerminalR].setPowerValue(value) },
-            }
-            inputs[whatIsWrittenR]();
-        }
         //On fait appel 
-        fromWhatIsWritten(whatIsWrittenR)
+        self.fromWhatIsWritten(whatIsWrittenR,indexTerminalR,value)
+    }
+
+    fromWhatIsWritten = (whatIsWrittenR,indexTerminalR,valueR) => {
+        let inputs = {
+            "V": () => { self.tabTerminal[indexTerminalR].setVoltageValue(valueR) },
+            "A": () => { self.tabTerminal[indexTerminalR].setAmpereValue(valueR) },
+            "kW": () => { self.tabTerminal[indexTerminalR].setPowerValue(valueR) },
+        }
+        inputs[whatIsWrittenR]();
     }
 
     /**
