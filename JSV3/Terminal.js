@@ -518,6 +518,7 @@ class Terminal {
                 "0x0A": "HIM-RFID broken-down",
                 "0x0B": "FATAL ERROR 1",
                 "0x0C": "FATAL ERROR 2",
+                "0x0D": "ERROR IN BDD",
                 "0x0E": "CONNECTION REFUSED",
                 "0x0F": "DECONNECTION ERROR",
             }

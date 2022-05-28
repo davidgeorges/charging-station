@@ -200,11 +200,20 @@ class Server {
             };
             //Si le satus du rfid est en attente et
             if (self.tabTerminal.some(element => (element.getAdr("rfid") == valueR.adr && element.getStatus() == "0x00"))) {
-                console.log("From Serv.js [209] : Checking User in BDD");
+                console.log("From Serv.js [203] : Checking User in BDD");
                 await self.db.readData(valueR.data).then((dataR) => {
                     self.determineBddError(dataR.length.toString(), dataStatus)
-                    if (!dataStatus.err) { resolve(dataR) }
-                    reject((dataStatus.status))
+                    if (!dataStatus.err) { resolve(dataR) } else {
+                        let indexTerminal = self.findIndex("rfid", valueR.adr);
+                        self.tabTerminal[indexTerminal].setStatus("0x0D");
+                        setTimeout(() => {
+                            self.tabTerminal[indexTerminal].setStatus("0x00");
+                        }, 7000)
+                        let newIndex = indexTerminal + 1;
+                        self.io.emit("newSimulationFromServ", { id: "b" + newIndex + "b4" })
+                        reject((dataStatus.status))
+                    }
+
                 })
             } else {
                 reject();
@@ -274,7 +283,7 @@ class Server {
                                 err.status = "error"
                             }
                             self.execErrorMethodFomStatus(err.status, indexTerminal, whoIsWriting)
-                            console.log("From Serv.js [239] : Error brokenDown or Timeout");
+                            console.log("From Serv.js [277] : Error brokenDown or Timeout");
                             console.log("---------------------------------------");
                         })
                 }
@@ -307,7 +316,7 @@ class Server {
             for (let elementTerminal of self.tabTerminal) {
                 if (elementPrio.adr == elementTerminal.getAdr("wattMeter") && elementTerminal.getStatus() == "0x01") {
                     elementTerminal.setKwhGive(self.crc16.convertIntoHexaBuffer((pourcentage[indexPrio] * 70).toString(16), "kwhGive"));
-                    console.log("From Serv.js [405] : New value kwhGive ", elementTerminal.getKwhGive())
+                    console.log("From Serv.js [310] : New value kwhGive ", elementTerminal.getKwhGive())
                 }
             }
         }
@@ -322,7 +331,7 @@ class Server {
         self.tabTerminal.forEach(element => {
             if (element.getStatus() == "0x01") {
                 element.setPrio(((Math.round((element.getTimeLeft() / element.getKwhLeft()) * 100) / 100) / 60).toFixed(2));
-                console.log("From Serv.js [426] : Caclul de la prio ", element.getPrio());
+                console.log("From Serv.js [325] : Caclul de la prio ", element.getPrio());
                 tabPrio.push({
                     adr: element.getAdr("wattMeter"),
                     prio: element.getPrio(),
@@ -357,7 +366,7 @@ class Server {
                 element.setStatusModule("dontRead", "wattMeter")
             }
         }
-        console.log("From Serv.js [518] : Terminal created.")
+        console.log("From Serv.js [360] : Terminal created.")
         console.log("---------------------------------------");
     }
 
@@ -473,7 +482,7 @@ class Server {
                     }, 7000)
                 }
             }).catch((err) => {
-                console.log("Froms Serv.js [446] : ", err)
+                console.log("Froms Serv.js [476] : ", err)
             });
         }
     }
@@ -504,7 +513,7 @@ class Server {
     * Traitement de données lors de la récéption d'une trame IHM
     */
     himProcessing() {
-        console.log("From Serv.js [667] : données envoyer et reçu de l'IHM avec succées");
+        console.log("From Serv.js [507] : données envoyer et reçu de l'IHM avec succées");
     }
 
     /**
@@ -612,7 +621,7 @@ class Server {
         }
         inputs[whoIsWritingR]();
 
-        console.log("From Serv.js [736] : ", whoIsWritingR, "HS");
+        console.log("From Serv.js [615] : ", whoIsWritingR, "HS");
 
         //Si l"ihm communique pas
         if (self.tabTerminal[indexTerminalR].getNbRetry("him") > 0 || whoIsWritingR == "him") {
@@ -674,7 +683,6 @@ class Server {
     */
     async disconnectCar(indexTerminalR) {
         return new Promise(async (resolve, reject) => {
-
             /*On sauvegarde le kwh utilisé par les véhicules en chargement;
             pour contrer un crash lors d'une éventuelle IHM HS lors de la déconnexion d'un véhicule*/
             let tabSaveAllKwhUsed = self.saveAllKwhUsed()
@@ -701,17 +709,13 @@ class Server {
                     self.tabTerminal[indexTerminalR].brokenDown("0x0C", "broken", "broken");
                 }
 
-
                 //Deco erreur donc on remet les kwh avant le recalcul de prio
                 for (var [index, element] of self.tabTerminal.entries()) {
                     element.setKwhGive(tabSaveAllKwhUsed[index])
                 }
-
                 return reject("ErrorWriting");
             })
-
         })
-
     }
 
     /**
@@ -719,9 +723,7 @@ class Server {
     * @param  I
     */
     async connectCar(indexTerminalR, newTabPrioFrameR, tabSaveAllKwhUsedR) {
-
         return new Promise(async (resolve, reject) => {
-
             await self.writePrioFrame(newTabPrioFrameR).then((res) => {
                 self.nbBorneUsed++;
                 resolve();
@@ -759,7 +761,7 @@ class Server {
 
         for (const element of self.tabTerminal) {
 
-            if (element.getNbRetry("wattMeter") > 0 && element.getKwhGive() >0 || element.getNbRetry("rfid") > 0 && element.getKwhGive() >0 || element.getNbRetry("him") > 0 && element.getKwhGive() >0) {
+            if (element.getNbRetry("wattMeter") > 0 && element.getKwhGive() > 0 || element.getNbRetry("rfid") > 0 && element.getKwhGive() > 0 || element.getNbRetry("him") > 0 && element.getKwhGive() > 0) {
                 return false
             }
 
@@ -809,9 +811,9 @@ class Server {
                 console.log("writePrioFrame", element)
                 await self.mySerial.writeData(element.data, element.whoIsWriting)
                     .then((res) => {
-                        console.log("Froms Serv.js [672] : sucess write")
+                        console.log("Froms Serv.js [810] : sucess write")
                     }).catch((err) => {
-                        console.log("Froms Serv.js [783] : fail write")
+                        console.log("Froms Serv.js [813] : fail write")
                         return reject(element)
                     })
             }
