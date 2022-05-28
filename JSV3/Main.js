@@ -12,12 +12,6 @@ const server = new Server();
 server.createHttpServer();
 server.createHttpConnection(() => {
     server.db.createConnection(process.env.dbName,process.env.dbLogin,process.env.dbPassword, (stringR) => {
-        /*if (stringR.length == 0) {
-            server.createAllTerminal(2)
-            server.createEmitInteval();
-        }else{
-            console.log("From Mains.js [22] : Error bdd can't use terminal !")
-        }*/
         server.createAllTerminal(3)
         server.createEmitInteval();
         server.createWebEmitInteval();
