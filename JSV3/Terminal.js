@@ -485,7 +485,6 @@ class Terminal {
 
     //Modifie le nombre de kwh fourni ( consigne )
     setKwhGive(valueR) {
-        console.log("TEST  :",valueR)
         this.allData.data.kwhGive = valueR
         this.setKwhGiveHim(valueR);
         this.setKwhGiveHimWeb(valueR);

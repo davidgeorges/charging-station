@@ -1,5 +1,6 @@
 const { log, Console } = require('console');
 const { stat } = require('fs');
+const { resolve } = require('path');
 
 let self = null;
 
@@ -221,6 +222,18 @@ class Server {
         })
     }
 
+    async tryToDisconnect(indexTerminalR) {
+
+        console.log("227 AVANT")
+        if (self.checkIfNoTimetout() && self.checkIfNoFatalError()) {
+            await self.disconnectCar(indexTerminalR)
+        } else {
+            self.tabTerminal[indexTerminalR].setStatus("0x0F");;
+        }
+        console.log("233 AVANT")
+
+    }
+
     /**
     * Va écrire les trames des différents modules contenu dans le tableau tabFrameToRead
     */
@@ -236,36 +249,29 @@ class Server {
                 //Si le status est a ok on peut écrire la trame
                 if (self.tabTerminal[indexTerminal].getStatusModule(whoIsWriting) == "canBeRead") {
                     //On vérifie si le véhicule du chargement est fini Si c'est le cas on gère la fin de chargement
+
                     if ((self.tabTerminal[indexTerminal].getKwhLeft() <= 0 && self.tabTerminal[indexTerminal].getStatus() == "0x01")) {
-
-                        if (self.checkIfNoTimetout() && self.checkIfNoFatalError()) {
-                            console.log("RENTRER DANS DECO -------------------------- RENTRER DANS DECO")
-                            await self.disconnectCar(indexTerminal).then((res) => {
-
-                            }).catch((err) => {
-
-                            })
-                        } else {
-                            self.tabTerminal[indexTerminal].setStatus("0x0F");;
-                        }
-
+                        console.log("252 AVANT")
+                        await self.tryToDisconnect(indexTerminal)
+                        console.log("254 APRES")
                         self.canEmit = true;
                         return;
+                    }
 
-                    }
                     //Mise  ajour des valeurs de l'ihm avant d'envoyer la trame
-                    if (whoIsWriting == "ihm") {
-                        self.tabTerminal[indexTerminal].setHimValue();
-                    }
+                    if (whoIsWriting == "ihm") { self.tabTerminal[indexTerminal].setHimValue(); }
+
+                    console.log("261 AVANT POUR ", self.tabFrameToRead[indextabFrameToRead].adr)
+
                     await self.mySerial.writeData(self.tabFrameToRead[indextabFrameToRead].data, whoIsWriting)
                         .then(async (res) => {
                             //Si on a deja eu des erreurs mais que le module communique actuellement
-                            if (self.tabTerminal[indexTerminal].getNbRetry(whoIsWriting) > 0) {
-                                self.tabTerminal[indexTerminal].setNbRetry(0, whoIsWriting);
-                            }
+                            if (self.tabTerminal[indexTerminal].getNbRetry(whoIsWriting) > 0) { self.tabTerminal[indexTerminal].setNbRetry(0, whoIsWriting); }
                             switch (whoIsWriting) {
                                 case "rfid":
+                                    console.log("268 AVANT")
                                     await self.rfidProcessing(indexTerminal, res)
+                                    console.log("270 APRES")
                                     break;
                                 case "wattMeter":
                                     self.wattMeterProcessing(res.data, indexTerminal, self.tabFrameToRead[indextabFrameToRead].whatIsWritten)
@@ -286,6 +292,7 @@ class Server {
                             console.log("From Serv.js [277] : Error brokenDown or Timeout");
                             console.log("---------------------------------------");
                         })
+                    console.log("293 APRES")
                 }
             }
             self.canEmit = true;
@@ -442,7 +449,38 @@ class Server {
     }
 
 
+    async tryToConnect(indexTerminalR) {
 
+        let newTabPrioFrame = [];
+        let tabSaveAllKwhUsed = self.saveAllKwhUsed()
+        let newIndex = indexTerminalR + 1;
+
+        if (self.checkIfNoTimetout() && self.checkIfNoFatalError()) {
+
+            self.calcPrioCoeff();
+            self.insertPrioFrame("newCar", indexTerminalR, newTabPrioFrame)
+            console.log("467 AVANT")
+            await self.connectCar(indexTerminalR, newTabPrioFrame, tabSaveAllKwhUsed).then((res) => {
+            }).catch((err) => {
+                self.io.emit("newSimulationFromServ", { id: "b" + newIndex + "b4" })
+            })
+            console.log("476 APRES")
+        } else {
+            self.tabTerminal[indexTerminalR].resetData(false);
+            self.tabTerminal[indexTerminalR].setStatus("0x0E");
+            self.tabTerminal[indexTerminalR].setStatusModule("canBeRead", "rfid");
+            self.tabTerminal[indexTerminalR].setStatusModule("dontRead", "wattMeter");
+            //On redonne les kWh avant le calcul de prio
+            for (var [index, element2] of self.tabTerminal.entries()) {
+                element2.setKwhGive(tabSaveAllKwhUsed[index])
+            }
+            self.io.emit("newSimulationFromServ", { id: "b" + newIndex + "b4" })
+            setTimeout(() => {
+                self.tabTerminal[indexTerminalR].setStatus("0x00");
+            }, 7000)
+        }
+
+    }
 
     /**
     * Traitement de données lors de la récéption d'une trame RFID
@@ -450,7 +488,7 @@ class Server {
     * @param dataR objet avec le status de l'écriture de la trame,l'adresse du Rfid qui a écrit la trame et le code de la carte {status: "succes", adr: '0x02", data: "CA84"}
     */
     async rfidProcessing(indexTerminalR, dataR) {
-        let newTabPrioFrame = [];
+
         //Si le RFID répond avec une carte de passé
         if (dataR.data != '\x00\x00') {
             await self.checkBdd(dataR).then(async (res) => {
@@ -458,34 +496,19 @@ class Server {
                     res.data[0].nbKwh, "0x01", "ON", "dontRead", "canBeRead")
                 /*On sauvegarde le kwh utilisé par les véhicules en chargement;
                 pour contrer un crash lors d'une éventuelle IHM HS lors de la déconnexion d'un véhicule*/
-                let tabSaveAllKwhUsed = self.saveAllKwhUsed()
-                let newIndex = indexTerminalR + 1;
-                if (self.checkIfNoTimetout() && self.checkIfNoFatalError()) {
-                    self.calcPrioCoeff();
-                    self.insertPrioFrame("newCar", indexTerminalR, newTabPrioFrame)
-                    await self.connectCar(indexTerminalR, newTabPrioFrame, tabSaveAllKwhUsed).then((res) => {
-                    }).catch((err) => {
-                        self.io.emit("newSimulationFromServ", { id: "b" + newIndex + "b4" })
-                    })
-                } else {
-                    self.tabTerminal[indexTerminalR].resetData(false);
-                    self.tabTerminal[indexTerminalR].setStatus("0x0E");
-                    self.tabTerminal[indexTerminalR].setStatusModule("canBeRead", "rfid");
-                    self.tabTerminal[indexTerminalR].setStatusModule("dontRead", "wattMeter");
-                    //On redonne les kWh avant le calcul de prio
-                    for (var [index, element2] of self.tabTerminal.entries()) {
-                        element2.setKwhGive(tabSaveAllKwhUsed[index])
-                    }
-                    self.io.emit("newSimulationFromServ", { id: "b" + newIndex + "b4" })
-                    setTimeout(() => {
-                        self.tabTerminal[indexTerminalR].setStatus("0x00");
-                    }, 7000)
-                }
+
+                console.log("AVANT 515");
+                await self.tryToConnect(indexTerminalR)
+                console.log("APRES 517");
+
+
             }).catch((err) => {
                 console.log("Froms Serv.js [476] : ", err)
             });
         }
+
     }
+
 
     /**
     * Traitement de données lors de la récéption d'une trame MESUREUR
@@ -509,12 +532,6 @@ class Server {
         inputs[whatIsWrittenR]();
     }
 
-    /**
-    * Traitement de données lors de la récéption d'une trame IHM
-    */
-    himProcessing() {
-        console.log("From Serv.js [507] : données envoyer et reçu de l'IHM avec succées");
-    }
 
     /**
     * Insertion des trames dans le tableau des trames a lire (tabFrameToRead)
@@ -658,7 +675,7 @@ class Server {
     }
 
     /**
-    * Va éxecuter des méthodes selon le status reçu 
+    * Va éxecuter des méthodes d'erreur selon le status reçu 
     * @param  statusR Contient l'erreur reçu
     * @param indexTerminalR Index de l'objet de la classe Terminal.js qui contient le module qui a une erreur
     * @param whoIsWritingR Le nom du module qui a une erreur
@@ -682,40 +699,49 @@ class Server {
     * @param  indexTerminalR L'index de l'élement du tableau des bornes qui vient se de déconnecter
     */
     async disconnectCar(indexTerminalR) {
-        return new Promise(async (resolve, reject) => {
-            /*On sauvegarde le kwh utilisé par les véhicules en chargement;
-            pour contrer un crash lors d'une éventuelle IHM HS lors de la déconnexion d'un véhicule*/
-            let tabSaveAllKwhUsed = self.saveAllKwhUsed()
 
-            let newTabPrioFrame = [];
+        console.log("707 AVANT")
+        /*On sauvegarde le kwh utilisé par les véhicules en chargement;
+        pour contrer un crash lors d'une éventuelle IHM HS lors de la déconnexion d'un véhicule*/
+        let tabSaveAllKwhUsed = self.saveAllKwhUsed()
 
-            self.tabTerminal[indexTerminalR].disconnectCar('0x00', "canBeRead", "dontRead", "OFF")
-            self.calcPrioCoeff()
-            self.insertPrioFrame("discoCar", indexTerminalR, newTabPrioFrame);
+        let newTabPrioFrame = [];
 
-            await self.writePrioFrame(newTabPrioFrame).then((res) => {
-                self.nbBorneUsed--;
-                resolve();
-            }).catch((err) => {
+        self.tabTerminal[indexTerminalR].disconnectCar('0x00', "canBeRead", "dontRead", "OFF")
+        self.calcPrioCoeff()
+        self.insertPrioFrame("discoCar", indexTerminalR, newTabPrioFrame);
 
-                //Si celui qui a crash n'est pas le module qui demande une deco
-                if (err.adr != self.tabTerminal[indexTerminalR].getAdr("him")) {
-                    let indexTerminalError = self.findIndex("him", err.adr);
-                    self.tabTerminal[indexTerminalError].brokenDown("0x0B", "broken", "broken");
-                    self.tabTerminal[indexTerminalR].resetData(false);
-                    self.tabTerminal[indexTerminalR].setStatus("0x0F");
-
-                } else {
-                    self.tabTerminal[indexTerminalR].brokenDown("0x0C", "broken", "broken");
-                }
-
-                //Deco erreur donc on remet les kwh avant le recalcul de prio
-                for (var [index, element] of self.tabTerminal.entries()) {
-                    element.setKwhGive(tabSaveAllKwhUsed[index])
-                }
-                return reject("ErrorWriting");
-            })
+        await self.writePrioFrame(newTabPrioFrame).then((res) => {
+            self.nbBorneUsed--;
+        }).catch((err) => {
+            self.refuseDisconnection(err.adr, indexTerminalR, tabSaveAllKwhUsed)
         })
+
+        console.log("724 AVANT")
+    }
+
+    /**
+    * On refuse la déconnexion d'un véhicule
+    * @param  adrDeconnectionR L'adresse du module him qui demande la déconnexion
+    * @param  indexTerminalR L'index de l'élement du tableau des bornes qui vient se de déconnecter
+    * @param  tabSaveAllKwhUsedR Tableau des anciens kWs fourni
+    */
+    refuseDisconnection(adrDeconnectionR, indexTerminalR, tabSaveAllKwhUsedR) {
+        //Si celui qui a crash n'est pas le module qui demande une deco
+        if (adrDeconnectionR != self.tabTerminal[indexTerminalR].getAdr("him")) {
+            let indexTerminalError = self.findIndex("him", adrDeconnectionR);
+            self.tabTerminal[indexTerminalError].brokenDown("0x0B", "broken", "broken");
+            self.tabTerminal[indexTerminalR].resetData(false);
+            self.tabTerminal[indexTerminalR].setStatus("0x0F");
+
+        } else {
+            self.tabTerminal[indexTerminalR].brokenDown("0x0C", "broken", "broken");
+        }
+
+        //Deco erreur donc on remet les kwh avant le recalcul de prio
+        for (var [index, element] of self.tabTerminal.entries()) {
+            element.setKwhGive(tabSaveAllKwhUsedR[index])
+        }
     }
 
     /**
@@ -723,37 +749,67 @@ class Server {
     * @param  I
     */
     async connectCar(indexTerminalR, newTabPrioFrameR, tabSaveAllKwhUsedR) {
-        return new Promise(async (resolve, reject) => {
-            await self.writePrioFrame(newTabPrioFrameR).then((res) => {
-                self.nbBorneUsed++;
-                resolve();
+
+        await self.writePrioFrame(newTabPrioFrameR).then((res) => {
+            self.nbBorneUsed++;
+        })
+            //Si on a un problème d'écriture de trame prioritaire
+            .catch((err) => {
+                self.refuseNewConnection(err.adr, indexTerminalR, tabSaveAllKwhUsedR);
             })
-                //Si on a un problème d'écriture de trame prioritaire
-                .catch((err) => {
 
-                    //Si celui qui a crash n'est pas le nouveau module
-                    if (err.adr != self.tabTerminal[indexTerminalR].getAdr("him")) {
-                        let indexTerminalError = self.findIndex("him", err.adr);
-                        self.tabTerminal[indexTerminalError].brokenDown("0x0B", "broken", "broken")
-                        //On redonne les kWh avant le calcul de prio
-                        for (var [index, element2] of self.tabTerminal.entries()) {
-                            element2.setKwhGive(tabSaveAllKwhUsedR[index])
-                        }
+    }
 
-                    } else {
-                        self.calcPrioCoeff();
-                    }
+    /**
+    * On refuse la déconnexion d'un véhicule
+    * @param  adrDeconnectionR L'adresse du module him qui demande la connexion
+    * @param  indexTerminalR L'index de l'élement du tableau des bornes qui vient se de connecter
+    * @param  tabSaveAllKwhUsedR Tableau des anciens kWs fourni
+    */
+    refuseNewConnection(adrDeconnectionR, indexTerminalR, tabSaveAllKwhUsedR) {
+        //Si celui qui a crash n'est pas le nouveau module
+        if (adrDeconnectionR != self.tabTerminal[indexTerminalR].getAdr("him")) {
+            let indexTerminalError = self.findIndex("him", adrDeconnectionR);
+            self.tabTerminal[indexTerminalError].brokenDown("0x0B", "broken", "broken")
+            //On redonne les kWh avant le calcul de prio
+            for (var [index, element2] of self.tabTerminal.entries()) {
+                element2.setKwhGive(tabSaveAllKwhUsedR[index])
+            }
 
-                    self.tabTerminal[indexTerminalR].resetData(false);
-                    self.tabTerminal[indexTerminalR].brokenDown("0x0E", "canBeRead", "dontRead")
+        } else {
+            self.calcPrioCoeff();
+        }
+        self.tabTerminal[indexTerminalR].resetData(false);
+        self.tabTerminal[indexTerminalR].brokenDown("0x0E", "canBeRead", "dontRead")
 
-                    setTimeout(() => {
-                        self.tabTerminal[indexTerminalR].setStatus("0x00");
-                    }, 7000)
+        setTimeout(() => {
+            self.tabTerminal[indexTerminalR].setStatus("0x00");
+        }, 7000)
+    }
 
-                    reject("ErrorWriting");
-
+    /**
+    * Ecriture des trames prioritaires
+    * @param  tabReceive Le tableau des trames prioritaires
+    */
+    async writePrioFrame(tabReceive) {
+        return new Promise(async (resolve, reject) => {
+            let errR = false;
+            console.log("writePrioFrame", tabReceive)
+            console.log("816 AVANT ")
+            for (const element of tabReceive) {
+                await self.mySerial.writeData(element.data, element.whoIsWriting).then((res) => {
+                    console.log("Froms Serv.js [810] : sucess write")
+                }).catch((err) => {
+                    errR = true;
+                    console.log("Froms Serv.js [813] : fail write")
                 })
+                if (errR) {
+                    console.log("820 REJECT APRES")
+                    return reject(element);
+                }
+            }
+            console.log("826 RESOLVE APRES")
+            resolve();
         })
     }
 
@@ -799,26 +855,6 @@ class Server {
             }
         }
         return tab;
-    }
-
-    /**
-    * Ecriture des trames prioritaires
-    * @param  tabReceive Le tableau des trames prioritaires
-    */
-    async writePrioFrame(tabReceive) {
-        return new Promise(async (resolve, reject) => {
-            for (const element of tabReceive) {
-                console.log("writePrioFrame", element)
-                await self.mySerial.writeData(element.data, element.whoIsWriting)
-                    .then((res) => {
-                        console.log("Froms Serv.js [810] : sucess write")
-                    }).catch((err) => {
-                        console.log("Froms Serv.js [813] : fail write")
-                        return reject(element)
-                    })
-            }
-            resolve();
-        })
     }
 
     /**
@@ -886,7 +922,7 @@ class Server {
                 self.tabTerminal[dataR.index].resetData(true)
                 for (let [index, element] of self.tabTerminal.entries()) {
                     if (element.getStatus() == "0x0F") {
-                        await self.disconnectCar(index).then((res) => { }).catch((err) => { })
+                        await self.disconnectCar(index)
                     }
                 }
                 self.calcPrioCoeff();
