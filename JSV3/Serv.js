@@ -359,19 +359,11 @@ class Server {
         for (let index = 0; index < nbBorne; index++) {
             indexString = (index + 21);
             indexString = indexString.toString(16)
-
             stringHex = self.crc16.determineString(indexString)
-
             self.tabTerminal.push(new self.Terminal(stringHex + indexString));
-
             self.insertFrame(index, "rfid")
             self.insertFrame(index, "wattMeter")
             self.insertFrame(index, "him");
-
-            //On ne veux pas lire les trames du mesureur au début ( inutile )
-            for (const element of self.tabTerminal) {
-                element.setStatusModule("dontRead", "wattMeter")
-            }
         }
         console.log("From Serv.js [360] : Terminal created.")
         console.log("---------------------------------------");

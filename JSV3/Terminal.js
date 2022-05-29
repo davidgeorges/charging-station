@@ -40,7 +40,7 @@ class Terminal {
                 voltage: ["0x00", "0x00"],
                 ampere: ["0x00", "0x00"],
                 power: ["0x00", "0x00", "0x00", "0x00"],
-                status: "canBeRead",
+                status: "dontRead",
                 nbRetry: 0,
                 allFrame: [[], [], [],]
             },
