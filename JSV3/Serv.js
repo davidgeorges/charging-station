@@ -241,7 +241,7 @@ class Server {
         let indextabFrameToRead;
         let indexTerminal;
         let whoIsWriting;
-        if (self.tabFrameToRead.length) {
+
             for (indextabFrameToRead = 0; indextabFrameToRead < self.tabFrameToRead.length; indextabFrameToRead++) {
                 whoIsWriting = self.tabFrameToRead[indextabFrameToRead].whoIsWriting
                 //On va chercher l'index de l'initiateur de la trame dans le tableau de bornes
@@ -249,7 +249,6 @@ class Server {
                 //Si le status est a ok on peut écrire la trame
                 if (self.tabTerminal[indexTerminal].getStatusModule(whoIsWriting) == "canBeRead") {
                     //On vérifie si le véhicule du chargement est fini Si c'est le cas on gère la fin de chargement
-
                     if ((self.tabTerminal[indexTerminal].getKwhLeft() <= 0 && self.tabTerminal[indexTerminal].getStatus() == "0x01")) {
                         console.log("252 AVANT")
                         await self.tryToDisconnect(indexTerminal)
@@ -257,7 +256,6 @@ class Server {
                         self.canEmit = true;
                         return;
                     }
-
                     //Mise  ajour des valeurs de l'ihm avant d'envoyer la trame
                     if (whoIsWriting == "ihm") { self.tabTerminal[indexTerminal].setHimValue(); }
 
@@ -296,7 +294,6 @@ class Server {
                 }
             }
             self.canEmit = true;
-        }
     }
 
     getPourcentage = (val) => {
@@ -341,7 +338,6 @@ class Server {
         self.tabTerminal.forEach(element => {
             if (element.getStatus() == "0x01") {
                 element.setPrio(((Math.round((element.getTimeLeft() / element.getKwhLeft()) * 100) / 100) / 60).toFixed(2));
-                console.log("From Serv.js [325] : Caclul de la prio ", element.getPrio());
                 tabPrio.push({
                     adr: element.getAdr("wattMeter"),
                     prio: element.getPrio(),
