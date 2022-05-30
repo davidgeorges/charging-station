@@ -69,23 +69,19 @@ class Terminal {
         this.intervalTimer = null;
 
         /* Appel méthode */
-        this.createTerminal();
-
-
-    }
-
-    /**
-     * Create port communication
-     *
-     * 
-     */
-    createTerminal() {
-
         this.createAllTr();
+
+
     }
 
     //Création de tout les trames de la BORNE
     createAllTr() {
+        this.createWattMeterFame();
+        this.createRfidFrame();
+        this.createHimFrame();
+    }
+
+    createWattMeterFame(){
 
         let indexRest = 0;
         let stringHex = ""
@@ -136,8 +132,7 @@ class Terminal {
             this.manageAndAddCrc(this.allData.wattMeter.allFrame[index])
             //console.log("Test ",this.wattMeter.allFrame[index])
         }
-        this.createRfidFrame();
-        this.createHimFrame();
+
     }
 
     //Calcul du crc et insertion dans le tableau
