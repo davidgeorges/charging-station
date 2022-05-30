@@ -299,21 +299,23 @@ class Server {
         }
     }
 
+    getPourcentage = (val) => {
+        let inputs = {
+            1: [100],
+            2: [55, 45],
+            3: [38, 34, 28]
+        }
+        return inputs[val];
+    }
+
     /**
     * Va calculer selon le coefficient de priorités le kw a utilisé
     * @param tabPrioR va contenir les coefficients de priorités
     */
     calculKwh(tabPrioR) {
         let tabPrio = tabPrioR;
-        let getPourcentage = (val) => {
-            let inputs = {
-                1: [100],
-                2: [55, 45],
-                3: [38, 34, 28]
-            }
-            return inputs[val];
-        }
-        let pourcentage = getPourcentage(tabPrio.length)
+
+        let pourcentage = self.getPourcentage(tabPrio.length)
 
         //Tri croissant du coefficient de priorité
         tabPrio.sort(function (a, b) { return a.prio - b.prio });
@@ -329,6 +331,7 @@ class Server {
         }
 
     }
+
 
     /**
     * Va calculer le coefficient de priorités par rapport au ratio temps restant et kw restant 
