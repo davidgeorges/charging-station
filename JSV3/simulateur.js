@@ -32,6 +32,8 @@ let objBt3 =  {
     connect : true,
 }
 
+let val1;
+let val2;
 
 socket.on("newSimulationFromServ",(dataR)=>{
 

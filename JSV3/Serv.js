@@ -576,7 +576,7 @@ class Server {
                 let kwhLeft = element.getKwhLeft()
                 let timeLeft = element.getTimeLeft();
                 kwhLeft -= (((parseInt(kwhGive[0].substring(2) + kwhGive[1].substring(2), 16)) / 1000) / 3600)
-                console.log("TES .",(((parseInt(kwhGive[0].substring(2) + kwhGive[1].substring(2), 16)) / 1000) / 3600))
+                    console.log("TES .",(((parseInt(kwhGive[0].substring(2) + kwhGive[1].substring(2), 16)) / 1000) / 3600))
                 timeLeft -= 1;
                 element.setKwhLeft(kwhLeft)
                 element.setTimeLeft(timeLeft.toFixed(2));
