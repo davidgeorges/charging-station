@@ -99,7 +99,24 @@ border-bottom: 6px solid #4A14A6;
 @media screen and (max-width: 2000px) {
 
     .barB{
-        width: 60%;
+        width: 72%;
+    }
+
+}
+
+@media screen and (max-width: 1920px) {
+
+    .barB{
+        width: 62%;
+    }
+
+}
+
+@media screen and (max-width: 1670px) {
+
+    .gradient__bg {
+  
+        height:auto;
     }
 
 }
@@ -112,11 +129,24 @@ border-bottom: 6px solid #4A14A6;
 
 }
 
+
+
+@media screen and (max-width: 1440px) {
+
+    .barB{
+        width: 80%;
+    }
+
+
+}
+
 @media screen and (max-width: 1365px) {
 
     .barB{
         width: 85%;
     }
+
+   
 
 }
 

@@ -6,6 +6,10 @@
     flex-direction: row;
 }
 
+.paras {
+    padding-left: 0px!important;
+}
+
 button
 {   
     width: 100px;
