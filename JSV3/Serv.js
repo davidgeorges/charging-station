@@ -242,58 +242,58 @@ class Server {
         let indexTerminal;
         let whoIsWriting;
 
-            for (indextabFrameToRead = 0; indextabFrameToRead < self.tabFrameToRead.length; indextabFrameToRead++) {
-                whoIsWriting = self.tabFrameToRead[indextabFrameToRead].whoIsWriting
-                //On va chercher l'index de l'initiateur de la trame dans le tableau de bornes
-                indexTerminal = self.findIndex(whoIsWriting, self.tabFrameToRead[indextabFrameToRead].adr);
-                //Si le status est a ok on peut écrire la trame
-                if (self.tabTerminal[indexTerminal].getStatusModule(whoIsWriting) == "canBeRead") {
-                    //On vérifie si le véhicule du chargement est fini Si c'est le cas on gère la fin de chargement
-                    if ((self.tabTerminal[indexTerminal].getKwhLeft() <= 0 && self.tabTerminal[indexTerminal].getStatus() == "0x01")) {
-                        console.log("252 AVANT")
-                        await self.tryToDisconnect(indexTerminal)
-                        console.log("254 APRES")
-                        self.canEmit = true;
-                        return;
-                    }
-                    //Mise  ajour des valeurs de l'ihm avant d'envoyer la trame
-                    if (whoIsWriting == "ihm") { self.tabTerminal[indexTerminal].setHimValue(); }
-
-                    console.log("261 AVANT POUR ", self.tabFrameToRead[indextabFrameToRead].adr)
-
-                    await self.mySerial.writeData(self.tabFrameToRead[indextabFrameToRead].data, whoIsWriting)
-                        .then(async (res) => {
-                            //Si on a deja eu des erreurs mais que le module communique actuellement
-                            if (self.tabTerminal[indexTerminal].getNbRetry(whoIsWriting) > 0) { self.tabTerminal[indexTerminal].setNbRetry(0, whoIsWriting); }
-                            switch (whoIsWriting) {
-                                case "rfid":
-                                    console.log("268 AVANT")
-                                    await self.rfidProcessing(indexTerminal, res)
-                                    console.log("270 APRES")
-                                    break;
-                                case "wattMeter":
-                                    self.wattMeterProcessing(res.data, indexTerminal, self.tabFrameToRead[indextabFrameToRead].whatIsWritten)
-                                    break;
-                                default:
-                                    break;
-                            }
-                            console.log("---------------------------------------");
-                        })
-                        .catch((err) => {
-                            //Si l'index du nombre d'essais est supérieur ou égal à 2 on met la borne en panne.
-                            if (self.tabTerminal[indexTerminal].getNbRetry(whoIsWriting) >= 2) {
-                                err.status = "brokenDown";
-                            } else {
-                                err.status = "error"
-                            }
-                            self.execErrorMethodFomStatus(err.status, indexTerminal, whoIsWriting)
-                            console.log("From Serv.js [277] : Error brokenDown or Timeout");
-                            console.log("---------------------------------------");
-                    })
-                    console.log("293 APRES")
+        for (indextabFrameToRead = 0; indextabFrameToRead < self.tabFrameToRead.length; indextabFrameToRead++) {
+            whoIsWriting = self.tabFrameToRead[indextabFrameToRead].whoIsWriting
+            //On va chercher l'index de l'initiateur de la trame dans le tableau de bornes
+            indexTerminal = self.findIndex(whoIsWriting, self.tabFrameToRead[indextabFrameToRead].adr);
+            //Si le status est a ok on peut écrire la trame
+            if (self.tabTerminal[indexTerminal].getStatusModule(whoIsWriting) == "canBeRead") {
+                //On vérifie si le véhicule du chargement est fini Si c'est le cas on gère la fin de chargement
+                if ((self.tabTerminal[indexTerminal].getKwhLeft() <= 0 && self.tabTerminal[indexTerminal].getStatus() == "0x01")) {
+                    console.log("252 AVANT")
+                    await self.tryToDisconnect(indexTerminal)
+                    console.log("254 APRES")
+                    self.canEmit = true;
+                    return;
                 }
+                //Mise  ajour des valeurs de l'ihm avant d'envoyer la trame
+                if (whoIsWriting == "ihm") { self.tabTerminal[indexTerminal].setHimValue(); }
+
+                console.log("261 AVANT POUR ", self.tabFrameToRead[indextabFrameToRead].adr)
+
+                await self.mySerial.writeData(self.tabFrameToRead[indextabFrameToRead].data, whoIsWriting)
+                    .then(async (res) => {
+                        //Si on a deja eu des erreurs mais que le module communique actuellement
+                        if (self.tabTerminal[indexTerminal].getNbRetry(whoIsWriting) > 0) { self.tabTerminal[indexTerminal].setNbRetry(0, whoIsWriting); }
+                        switch (whoIsWriting) {
+                            case "rfid":
+                                console.log("268 AVANT")
+                                await self.rfidProcessing(indexTerminal, res)
+                                console.log("270 APRES")
+                                break;
+                            case "wattMeter":
+                                self.wattMeterProcessing(res.data, indexTerminal, self.tabFrameToRead[indextabFrameToRead].whatIsWritten)
+                                break;
+                            default:
+                                break;
+                        }
+                        console.log("---------------------------------------");
+                    })
+                    .catch((err) => {
+                        //Si l'index du nombre d'essais est supérieur ou égal à 2 on met la borne en panne.
+                        if (self.tabTerminal[indexTerminal].getNbRetry(whoIsWriting) >= 2) {
+                            err.status = "brokenDown";
+                        } else {
+                            err.status = "error"
+                        }
+                        self.execErrorMethodFomStatus(err.status, indexTerminal, whoIsWriting)
+                        console.log("From Serv.js [277] : Error brokenDown or Timeout");
+                        console.log("---------------------------------------");
+                    })
+                console.log("293 APRES")
             }
-            self.canEmit = true;
+        }
+        self.canEmit = true;
     }
 
     getPourcentage = (val) => {
@@ -311,7 +311,6 @@ class Server {
     */
     calculKwh(tabPrioR) {
         let tabPrio = tabPrioR;
-
         let pourcentage = self.getPourcentage(tabPrio.length)
 
         //Tri croissant du coefficient de priorité
@@ -322,11 +321,9 @@ class Server {
             for (let elementTerminal of self.tabTerminal) {
                 if (elementPrio.adr == elementTerminal.getAdr("wattMeter") && elementTerminal.getStatus() == "0x01") {
                     elementTerminal.setKwhGive(self.crc16.convertIntoHexaBuffer((pourcentage[indexPrio] * 70).toString(16), "kwhGive"));
-                    console.log("From Serv.js [310] : New value kwhGive ", elementTerminal.getKwhGive())
                 }
             }
         }
-
     }
 
 
@@ -335,16 +332,20 @@ class Server {
     */
     calcPrioCoeff() {
         let tabPrio = [];
+        let nbCalcul = 0;
         self.tabTerminal.forEach(element => {
             if (element.getStatus() == "0x01") {
-                element.setPrio(((Math.round((element.getTimeLeft() / element.getKwhLeft()) * 100) / 100) / 60).toFixed(2));
+                nbCalcul++;
+                element.setPrio( (((element.getTimeLeft()/3600)/element.getKwhLeft())).toFixed(5) );
                 tabPrio.push({
                     adr: element.getAdr("wattMeter"),
                     prio: element.getPrio(),
                 })
             }
         });
-        self.calculKwh(tabPrio);
+        if (nbCalcul > 0) {
+            self.calculKwh(tabPrio);
+        }
     }
 
     /**
@@ -575,7 +576,7 @@ class Server {
                 let kwhLeft = element.getKwhLeft()
                 let timeLeft = element.getTimeLeft();
                 kwhLeft -= (((parseInt(kwhGive[0].substring(2) + kwhGive[1].substring(2), 16)) / 1000) / 3600)
-
+                console.log("TES .",(((parseInt(kwhGive[0].substring(2) + kwhGive[1].substring(2), 16)) / 1000) / 3600))
                 timeLeft -= 1;
                 element.setKwhLeft(kwhLeft)
                 element.setTimeLeft(timeLeft.toFixed(2));
@@ -583,7 +584,6 @@ class Server {
             ihmWeb = element.getWebHimData();
             self.io.emit("newValueIhm", ihmWeb)
         }
-
     }
 
     /** 
