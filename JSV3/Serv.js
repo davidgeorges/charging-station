@@ -289,7 +289,7 @@ class Server {
                             self.execErrorMethodFomStatus(err.status, indexTerminal, whoIsWriting)
                             console.log("From Serv.js [277] : Error brokenDown or Timeout");
                             console.log("---------------------------------------");
-                        })
+                    })
                     console.log("293 APRES")
                 }
             }
@@ -696,13 +696,15 @@ class Server {
         pour contrer un crash lors d'une éventuelle IHM HS lors de la déconnexion d'un véhicule*/
         let tabSaveAllKwhUsed = self.saveAllKwhUsed()
 
-        let newTabPrioFrame = [];
+        let newTabPrioFrame = []
+        let newIndex = indexTerminalR+1
 
         self.tabTerminal[indexTerminalR].disconnectCar('0x00', "canBeRead", "dontRead", "OFF")
         self.calcPrioCoeff()
         self.insertPrioFrame("discoCar", indexTerminalR, newTabPrioFrame);
 
         await self.writePrioFrame(newTabPrioFrame).then((res) => {
+            self.io.emit("newSimulationFromServ", { id: "b" + newIndex + "b4" })
             self.nbBorneUsed--;
         }).catch((err) => {
             self.refuseDisconnection(err.adr, indexTerminalR, tabSaveAllKwhUsed)
@@ -758,6 +760,8 @@ class Server {
     * @param  tabSaveAllKwhUsedR Tableau des anciens kWs fourni
     */
     refuseNewConnection(adrDeconnectionR, indexTerminalR, tabSaveAllKwhUsedR) {
+
+        let newIndex = indexTerminalR+1;
         //Si celui qui a crash n'est pas le nouveau module
         if (adrDeconnectionR != self.tabTerminal[indexTerminalR].getAdr("him")) {
             let indexTerminalError = self.findIndex("him", adrDeconnectionR);
@@ -772,7 +776,7 @@ class Server {
         }
         self.tabTerminal[indexTerminalR].resetData(false);
         self.tabTerminal[indexTerminalR].brokenDown("0x0E", "canBeRead", "dontRead")
-
+        self.io.emit("newSimulationFromServ", { id: "b" + newIndex + "b4" });
         setTimeout(() => {
             self.tabTerminal[indexTerminalR].setStatus("0x00");
         }, 7000)
