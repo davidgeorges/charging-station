@@ -177,13 +177,13 @@ class Terminal {
             "0x07",
             //Nombre d'octet
             "0x0E",
-            //Intensité
+            //Intensité ( AMP )
             "0x00", "0x00",
             //Consigne courant
             "0x00", "0x00",
             //Puissance
             "0x00", "0x00", "0x00", "0x00",
-            //Tension
+            //Tension ( VOLT )
             "0x00", "0x00",
             //Durée
             "0x00", "0x00",
@@ -219,7 +219,8 @@ class Terminal {
             "0x05",
             //Adr du bit
             "0x00",
-            //Valeur ( ON/OFF (00/FF) par défaut on le met éteint )
+            "0x01",
+            //Valeur ( ON/OFF (FF/00) par défaut on le met éteint )
             "0x00",
             // ?
             "0x00",
@@ -252,14 +253,14 @@ class Terminal {
         switchContactorValue(valueR)
 
         //Modification du champ du tableau pour allumer ou éteindre le contacteur
-        this.allData.contactor.frame[0][3] = newValue
+        this.allData.contactor.frame[0][4] = newValue
 
         ////Calcul du crc et ajout manuellement dans la trame
         crc = this.manageCrc(this.allData.contactor.frame[0], this.allData.contactor.frame[0].length - 2)
 
         //Modification des champs CRC du tableau
-        this.allData.contactor.frame[0][5] = crc[0]
-        this.allData.contactor.frame[0][6] = crc[1]
+        this.allData.contactor.frame[0][6] = crc[0]
+        this.allData.contactor.frame[0][7] = crc[1]
 
     }
 
@@ -360,17 +361,17 @@ class Terminal {
 
     //Modification des volts au niveau de la trame ihm
     setVoltageHim(valueR) {
-        //Changement Intensité
-        this.allData.him.frame[0][6] = valueR[0]
-        this.allData.him.frame[0][7] = valueR[1]
+        //Changement tension
+        this.allData.him.frame[0][14] = valueR[0]
+        this.allData.him.frame[0][15] = valueR[1]
         this.setCrcHim();
     }
 
     //Modification de l'intensité au niveau de la trame ihm
     setAmpereHim(valueR) {
         //Changement Ampère
-        this.allData.him.frame[0][14] = valueR[0]
-        this.allData.him.frame[0][15] = valueR[1]
+        this.allData.him.frame[0][6] = valueR[0]
+        this.allData.him.frame[0][7] = valueR[1]
         this.setCrcHim();
     }
 
@@ -387,8 +388,14 @@ class Terminal {
     //Modifie le nombre de kwh fourni au niveau de la trame ihm ( consigne )
     setKwhGiveHim(valueR) {
         //Changement Consigne courant
-        this.allData.him.frame[0][8] = valueR[0]
-        this.allData.him.frame[0][9] = valueR[1]
+        var str = Math.round(parseInt(valueR[0].substring(2,4)+valueR[1].substring(2,4), 16)/230)
+        console.log("TESTTTTTTTT 2232: ", str)
+        str = str.toString(16)
+        console.log("TESTTTTTTTT 2332: ", str)
+        var stringHex = this.crc16.determineString(str)
+        this.allData.him.frame[0][9] = stringHex+str
+        console.log("TESTTTTTTTTTTTTTT: ",  this.allData.him.frame[0][9])
+
         this.setCrcHim();
     }
 
@@ -402,8 +409,8 @@ class Terminal {
     //Modification du timer au niveau de la trame ihm
     setTimerHim() {
         var tabHexa = this.crc16.convertIntoHexaBuffer(this.allData.data.timer.toString(16), "timer")
-        this.allData.him.frame[0][17] = tabHexa[0]
-        this.allData.him.frame[0][18] = tabHexa[1];
+        this.allData.him.frame[0][16] = tabHexa[0]
+        this.allData.him.frame[0][17] = tabHexa[1];
         this.setCrcHim();
     }
 
