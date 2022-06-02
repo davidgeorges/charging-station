@@ -8,7 +8,7 @@ let dataReceive = [];
 let dataHex = [];
 
 // Defining the serial port
-const port = new SerialPort("COM12", {
+const port = new SerialPort("COM11", {
     baudRate: 9600,
     dataBits: 8,
     parity: 'none'
