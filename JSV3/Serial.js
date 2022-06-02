@@ -114,7 +114,7 @@ class Serial {
         self.newData = false;
         self.whoIsWriting = whosWritingR
         return new Promise((resolve, reject) => {
-            console.log("From Serial.js [119] : Ecriture du module", self.whoIsWriting, " adr : ", dataToSend[0],"trame : ",dataToSend)
+            console.log("From Serial.js [119] : Ecriture du module", self.whoIsWriting, " adr : ", dataToSend[0], "trame : ", dataToSend)
             self.port.write(dataToSend, (err) => {
                 if (err) { console.log("From Serial.js [140] :  ", err) }
             })
@@ -133,7 +133,7 @@ class Serial {
                         data: self.dataPromise,
                     });
                 }
-            },30)
+            }, 30)
         })
     }
 
@@ -146,38 +146,29 @@ class Serial {
         //On le converti en entier
         nbDataBits = parseInt(nbDataBits);
 
-        //Selon le satus de l'erreur
-        let doInstruction = (whoIsWritingR) => {
-            let inputs = {
-                "rfid": () => { self.dataPromise = self.convertRfidDataToString(self.dataReceive) },
-                "wattMeter": () => {
-                    //On récupère tout les bits de donneés
-                    for (let index = 3; index < 3 + nbDataBits; index++) {
-                        //On concat les bits qui sont convertis en HEXA
-                        self.dataPromise += self.dataReceive[index].toString(16);
-                    }
-                },
-                "him": () => {
-                    //console.log("From Serial.js [189] : him data receive.")
-                },
-                "contactor": () => {
-                    //console.log("From Serial.js [189] : him data receive.")
-                },
-            }
-            inputs[whoIsWritingR]();
+        switch (self.whoIsWriting) {
+            case "rfid":
+                self.dataPromise = self.convertRfidDataToString(self.dataReceive)
+                break;
+            case "wattMeter":
+                //On récupère tout les bits de donneés
+                for (let index = 3; index < 3 + nbDataBits; index++) {
+                    //On concat les bits qui sont convertis en HEXA
+                    self.dataPromise += self.dataReceive[index].toString(16);
+                }
+                break;
+            default:
+                break;
         }
 
-        doInstruction(self.whoIsWriting)
 
     }
 
     /* Conversion des données de la carte RFID reçu */
     convertRfidDataToString(str1) {
-        console.log("STR : ",str1)
         let hex = "";
-        if(str1.length>=13){
+        if (str1.length >= 13) {
             for (let index = 4; index <= 10; index += 2) {
-                console.log("STR : ",str1[index])
                 hex += str1[index].toString(16);
             }
             let str = '';

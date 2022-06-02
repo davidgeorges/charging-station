@@ -193,7 +193,6 @@ class Server {
      * @param valueR objet avec le status de l'écriture de la trame,l'adresse du Rfid qui a écrit la trame et le code de la carte {status: "succes", adr: '0x02", data: "CA84"}
      */
     async checkBdd(valueR) {
-        console.log("Test ", valueR)
         return new Promise(async (resolve, reject) => {
             let dataStatus = {
                 err: false,
@@ -224,13 +223,11 @@ class Server {
 
     async tryToDisconnect(indexTerminalR) {
 
-        console.log("227 AVANT")
         if (self.checkIfNoTimetout() && self.checkIfNoFatalError()) {
             await self.disconnectCar(indexTerminalR)
         } else {
             self.tabTerminal[indexTerminalR].setStatus("0x0F");;
         }
-        console.log("233 AVANT")
 
     }
 
@@ -250,16 +247,12 @@ class Server {
             if (self.tabTerminal[indexTerminal].getStatusModule(whoIsWriting) == "canBeRead") {
                 //On vérifie si le véhicule du chargement est fini Si c'est le cas on gère la fin de chargement
                 if ((self.tabTerminal[indexTerminal].getKwhLeft() <= 0 && self.tabTerminal[indexTerminal].getStatus() == "0x01")) {
-                    console.log("252 AVANT")
                     await self.tryToDisconnect(indexTerminal)
-                    console.log("254 APRES")
                     self.canEmit = true;
                     return;
                 }
                 //Mise  ajour des valeurs de l'ihm avant d'envoyer la trame
                 if (whoIsWriting == "ihm") { self.tabTerminal[indexTerminal].setHimValue(); }
-
-                console.log("261 AVANT POUR ", self.tabFrameToRead[indextabFrameToRead].adr)
 
                 await self.mySerial.writeData(self.tabFrameToRead[indextabFrameToRead].data, whoIsWriting)
                     .then(async (res) => {
@@ -267,9 +260,8 @@ class Server {
                         if (self.tabTerminal[indexTerminal].getNbRetry(whoIsWriting) > 0) { self.tabTerminal[indexTerminal].setNbRetry(0, whoIsWriting); }
                         switch (whoIsWriting) {
                             case "rfid":
-                                console.log("268 AVANT")
                                 await self.rfidProcessing(indexTerminal, res)
-                                console.log("270 APRES")
+
                                 break;
                             case "wattMeter":
                                 self.wattMeterProcessing(res.data, indexTerminal, self.tabFrameToRead[indextabFrameToRead].whatIsWritten)
@@ -290,7 +282,6 @@ class Server {
                         console.log("From Serv.js [277] : Error brokenDown or Timeout");
                         console.log("---------------------------------------");
                     })
-                console.log("293 APRES")
             }
         }
         self.canEmit = true;
@@ -451,12 +442,10 @@ class Server {
 
             self.calcPrioCoeff();
             self.insertPrioFrame("newCar", indexTerminalR, newTabPrioFrame)
-            console.log("467 AVANT")
             await self.connectCar(indexTerminalR, newTabPrioFrame, tabSaveAllKwhUsed).then((res) => {
             }).catch((err) => {
                 self.io.emit("newSimulationFromServ", { id: "b" + newIndex + "b4" })
             })
-            console.log("476 APRES")
         } else {
             self.tabTerminal[indexTerminalR].resetData(false);
             self.tabTerminal[indexTerminalR].setStatus("0x0E");
@@ -484,14 +473,12 @@ class Server {
         //Si le RFID répond avec une carte de passé
         if (dataR.data != '\x00\x00') {
             await self.checkBdd(dataR).then(async (res) => {
-                self.tabTerminal[indexTerminalR].connectCar(res.data[0].nbKwh, res.data[0].timeP, res.data[0].timeP * 3600,
+                self.tabTerminal[indexTerminalR].connectCar(res.data[0].nbKwh, res.data[0].timeP, res.data[0].timeP * 60,
                     res.data[0].nbKwh, "0x01", "ON", "dontRead", "canBeRead")
                 /*On sauvegarde le kwh utilisé par les véhicules en chargement;
                 pour contrer un crash lors d'une éventuelle IHM HS lors de la déconnexion d'un véhicule*/
 
-                console.log("AVANT 515");
                 await self.tryToConnect(indexTerminalR)
-                console.log("APRES 517");
 
 
             }).catch((err) => {
@@ -509,7 +496,6 @@ class Server {
     * @param whatIsWrittenR La nature de la trame écrite (Volt, Ampere, Puissance)
     */
     wattMeterProcessing(dataR, indexTerminalR, whatIsWrittenR) {
-        console.log("test ", dataR);
         let value = self.crc16.convertIntoHexaBuffer(dataR, whatIsWrittenR);
         //On fait appel 
         self.fromWhatIsWritten(whatIsWrittenR, indexTerminalR, value)
@@ -576,7 +562,6 @@ class Server {
                 let kwhLeft = element.getKwhLeft()
                 let timeLeft = element.getTimeLeft();
                 kwhLeft -= (((parseInt(kwhGive[0].substring(2) + kwhGive[1].substring(2), 16)) / 1000) / 3600)
-                    console.log("TES .",(((parseInt(kwhGive[0].substring(2) + kwhGive[1].substring(2), 16)) / 1000) / 3600))
                 timeLeft -= 1;
                 element.setKwhLeft(kwhLeft)
                 element.setTimeLeft(timeLeft.toFixed(2));
@@ -691,7 +676,6 @@ class Server {
     */
     async disconnectCar(indexTerminalR) {
 
-        console.log("707 AVANT")
         /*On sauvegarde le kwh utilisé par les véhicules en chargement;
         pour contrer un crash lors d'une éventuelle IHM HS lors de la déconnexion d'un véhicule*/
         let tabSaveAllKwhUsed = self.saveAllKwhUsed()
@@ -710,7 +694,6 @@ class Server {
             self.refuseDisconnection(err.adr, indexTerminalR, tabSaveAllKwhUsed)
         })
 
-        console.log("724 AVANT")
     }
 
     /**
@@ -789,8 +772,7 @@ class Server {
     async writePrioFrame(tabReceive) {
         return new Promise(async (resolve, reject) => {
             let errR = false;
-            console.log("writePrioFrame", tabReceive)
-            console.log("816 AVANT ")
+
             for (const element of tabReceive) {
                 await self.mySerial.writeData(element.data, element.whoIsWriting).then((res) => {
                     console.log("Froms Serv.js [810] : sucess write")
@@ -799,11 +781,9 @@ class Server {
                     console.log("Froms Serv.js [813] : fail write")
                 })
                 if (errR) {
-                    console.log("820 REJECT APRES")
                     return reject(element);
                 }
             }
-            console.log("826 RESOLVE APRES")
             resolve();
         })
     }
@@ -862,7 +842,6 @@ class Server {
         //Insertion des trames prioritaires
         for (let element of self.tabTerminal) {
             if (element.getStatus() == "0x01" && element.getAdr("rfid") != self.tabTerminal[indexTerminalR].getAdr("rfid")) {
-                console.log("Ici");
                 newTabPrioFrameR.push({
                     whoIsWriting: "him",
                     data: element.getFrame("him"),
