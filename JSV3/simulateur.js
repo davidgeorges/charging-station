@@ -8,7 +8,7 @@ let dataReceive = [];
 let dataHex = [];
 
 // Defining the serial port
-const port = new SerialPort("COM11", {
+const port = new SerialPort("COM12", {
     baudRate: 9600,
     dataBits: 8,
     parity: 'none'
@@ -35,9 +35,12 @@ let objBt3 =  {
 let val1;
 let val2;
 
-socket.on("newSimulationFromServ",(dataR)=>{
+let tabVal;
 
-    console.log("Simulate Receive",dataR)
+
+socket.on("newSimulationFromServ", (dataR) => {
+
+    console.log("Simulate Receive", dataR)
 
     let execute = (val) => {
         let inputs = {
@@ -83,6 +86,11 @@ socket.on("newSimulationFromServ",(dataR)=>{
                 objBt3.connect = true;
                 frame3 = [0x03, 0x03, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xa2, 0xe3];
             },
+            "bb": ()=>{
+
+                tabVal = dataR.tabVal;
+                console.log("TTTTT : ", tabVal);
+            },
 
         }
         return inputs[val]();
@@ -122,37 +130,35 @@ port.on("data", (line) => {
     }
 
 
-    if (objBt1.connect &&dataHex[0] == "15") {
+    if (objBt1.connect && dataHex[0] == "15") {
         let randomVal = 0;
         switch (dataHex[3]) {
             case '31':
                 randomVal = Math.round(getRandomArbitrary(22220, 23000));
-                console.log("VOLT --> ", randomVal);
+                console.log("VOLT I 0x15 --> ", randomVal);
                 change(randomVal.toString(16))
-                port.write([0x15, 0x03, 0x02, val1, val2, 0xB1, 0xC3]); //227,68 V
-                console.log(dataHex[3]);
+                console.log("VOLT I 0x15 HEXA  --> ", val1, " ",val2);
+                port.write([0x15, 0x03, 0x02, val1, val2, 0xB1, 0xC3]); //Ex : 227,68 V
                 break;
             case '39':
-                randomVal = Math.round(getRandomArbitrary(2000, 7800));
-                console.log("CURRENT --> ", randomVal);
+                randomVal = Math.round(getRandomArbitrary(tabVal[1] - 1.2, tabVal[1]));
+                console.log("CURRENT A 0x15 --> ", randomVal);
                 change(randomVal.toString(16))
-                port.write([0x15, 0x03, 0x04, 0x00, 0x00, val1, val2, 0x67, 0xE6]); //7,857 A
-                console.log(dataHex[3]);
-
+                console.log("CURRENT A 0x15 HEXA  --> ", val1, " ",val2);
+                port.write([0x15, 0x03, 0x04, 0x00, 0x00, val1, val2, 0x67, 0xE6]); //Ex : 30 A
                 break;
             case '40':
-                randomVal = 3500
-                console.log("ACTIVE POWER --> ", randomVal);
+                randomVal = Math.round(getRandomArbitrary((tabVal[0] * 1000) - 100, (tabVal[0] * 1000)));
+                console.log("ACTIVE POWER KW 0x15 --> ", randomVal);
                 change(randomVal.toString(16))
-                port.write([0x15, 0x03, 0x04, 0x00, 0x00, val1, val2, 0x2D, 0xDB]);//1,762 kW
-                console.log(dataHex[3]);
-                setTimeout(() => {
-                    console.clear();
-                }, 50)
+                console.log("ACTIVE POWER KW 0x15 HEXA  --> ", val1, " ",val2);
+                port.write([0x15, 0x03, 0x04, 0x00, 0x00, val1, val2, 0x2D, 0xDB]);//Ex : 3,850 kW
                 break;
             default:
                 break;
         }
+        console.log("---------------------------------");
+
     }
 
     if (objBt2.connect && dataHex[0] == "16") {
@@ -160,69 +166,61 @@ port.on("data", (line) => {
         switch (dataHex[3]) {
             case '31':
                 randomVal = Math.round(getRandomArbitrary(22220, 23000));
-                console.log("VOLT --> ", randomVal);
+                console.log("VOLT I 0x16 --> ", randomVal);
                 change(randomVal.toString(16))
+                console.log("VOLT I 0x16 HEXA  --> ", val1, " ",val2);
                 port.write([0x16, 0x03, 0x02, val1, val2, 0xB1, 0xC3]); //227,68 V
-                console.log(dataHex[3]);
                 break;
             case '39':
-                randomVal = Math.round(getRandomArbitrary(2000, 7800));
-                console.log("CURRENT --> ", randomVal);
+                randomVal = Math.round(getRandomArbitrary(tabVal[3] - 1.2, tabVal[3]));
+                console.log("CURRENT A 0x16 --> ", randomVal);
                 change(randomVal.toString(16))
+                console.log("CURRENT A 0x16 HEXA  --> ", val1, " ",val2);
                 port.write([0x16, 0x03, 0x04, 0x00, 0x00, val1, val2, 0x67, 0xE6]); //7,857 A
-                console.log(dataHex[3]);
-
                 break;
             case '40':
-                randomVal = 3500
-                console.log("ACTIVE POWER --> ", randomVal);
+                randomVal = Math.round(getRandomArbitrary((tabVal[2] * 1000) - 100, (tabVal[2] * 1000)));
+                console.log("ACTIVE POWER KW 0x16  --> ", randomVal);
                 change(randomVal.toString(16))
+                console.log("ACTIVE POWER 0x16 KW HEXA  --> ", val1, " ",val2);
                 port.write([0x16, 0x03, 0x04, 0x00, 0x00, val1, val2, 0x2D, 0xDB]);//1,762 kW
-                console.log(dataHex[3]);
-                setTimeout(() => {
-                    console.clear();
-                }, 700)
                 break;
             default:
                 break;
         }
-        
+        console.log("---------------------------------");
+
     }
 
     if (objBt3.connect && dataHex[0] == "17") {
+
         let randomVal = 0;
         switch (dataHex[3]) {
             case '31':
                 randomVal = Math.round(getRandomArbitrary(22220, 23000));
-                console.log("VOLT --> ", randomVal);
+                console.log("VOLT I 0x17 --> ", randomVal);
                 change(randomVal.toString(16))
+                console.log("VOLT I 0x17 HEXA  --> ", val1, " ",val2);
                 port.write([0x17, 0x03, 0x02, val1, val2, 0xB1, 0xC3]); //227,68 V
-                console.log(dataHex[3]);
                 break;
             case '39':
-                randomVal = Math.round(getRandomArbitrary(2000, 7800));
-                console.log("CURRENT --> ", randomVal);
+                randomVal = Math.round(getRandomArbitrary(tabVal[5] - 1.2, tabVal[5]));
+                console.log("CURRENT A 0x17 --> ", randomVal);
                 change(randomVal.toString(16))
+                console.log("CURRENT A 0x17 HEXA  --> ", val1, " ",val2);
                 port.write([0x17, 0x03, 0x04, 0x00, 0x00, val1, val2, 0x67, 0xE6]); //7,857 A
-                console.log(dataHex[3]);
-
                 break;
             case '40':
-                randomVal = 3500
-                console.log("ACTIVE POWER --> ", randomVal);
+                randomVal = Math.round(getRandomArbitrary((tabVal[4] * 1000) - 100, (tabVal[4] * 1000)));
+                console.log("ACTIVE POWER KW 0x17 --> ", randomVal);
                 change(randomVal.toString(16))
+                console.log("ACTIVE POWER KW 0x17 HEXA  --> ", val1, " ",val2);
                 port.write([0x17, 0x03, 0x04, 0x00, 0x00, val1, val2, 0x2D, 0xDB]);//1,762 kW
-                console.log(dataHex[3]);
-                setTimeout(() => {
-                    console.clear();
-                }, 700)
                 break;
             default:
                 break;
         }
-        
-        
-
+        console.log("---------------------------------");
 
     }
 
@@ -233,11 +231,8 @@ port.on("data", (line) => {
 function converTabToHex() {
 
     dataReceive.forEach(element => {
-
-        //console.log('Convert ' + element.toString(16));
         dataHex.push(element.toString(16))
     });
-    console.log("Converted : ", dataHex[0])
 
 }
 
@@ -246,7 +241,6 @@ function getRandomArbitrary(min, max) {
 }
 
 function change(dataR) {
-    console.log("Base", dataR)
     switch (dataR.length) {
         case 4:
             val1 = "0x" + dataR.substring(0, 2)
@@ -256,8 +250,15 @@ function change(dataR) {
             val1 = "0x0" + dataR.substring(0, 1)
             val2 = "0x" + dataR.substring(1)
             break;
+        case 2:
+            val1 = "0x00"
+            val2 = "0x" + dataR
+            break;
+        case 1:
+            val1 = "0x00"
+            val2 = "0x0" + dataR
+            break;
         default:
             break;
     }
-    console.log("Changed : --> ", val1, "et ", val2)
 }
