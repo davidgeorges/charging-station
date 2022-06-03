@@ -12,7 +12,16 @@
     border-radius: 23px;
 }
 
-.test1{
+.div45 {
+    width: 45%
+}
+
+.div55 {
+    width: 55%
+}
+
+
+.test1 {
     display: flex;
     margin-left: auto;
     margin-right: auto;
@@ -22,42 +31,45 @@
     color: white !important;
 }
 
-.navbar{
-    padding-top: 1rem!important;
-    padding-bottom: 1rem!important;
+.navbar {
+    padding-top: 1rem !important;
+    padding-bottom: 1rem !important;
     width: 100%;
-border-bottom: 6px solid #4A14A6;
+    border-bottom: 6px solid #4A14A6;
 }
 
-.nav-link{
+.nav-link {
     color: white !important;
 }
 
-
-.para{
+.div55 p {
     color: white;
-    padding-top:  15px;
+    padding-top: 15px;
     padding-left: 25px;
 }
-.paras{
+
+.div45 p {
     color: white;
     padding-top: 15px;
     padding-left: 70px;
 }
 
-.img{
+
+
+
+.img {
     width: 200px;
     height: 100px;
 
 }
 
-.txt{
+.txt {
     font-size: 14px;
 }
 
 .gradient__bg {
-  
-    background :#171717;
+
+    background: #171717;
     height: 100%;
 }
 
@@ -66,133 +78,134 @@ border-bottom: 6px solid #4A14A6;
         width: 95%;
         height: 250px;
     }
-    .img{
+
+    .img {
         margin-left: 17%;
     }
 
-    .paras{
+    .paras {
         margin-left: 37%;
     }
 }
 
 @media screen and (max-width: 630px) {
-    
-    .img{
+
+    .img {
         margin-left: 14%;
     }
 
-    .paras{
+    .paras {
         margin-left: 35%;
     }
 }
 
 @media screen and (max-width: 600px) {
-    
+
     .container-center-horizontal {
         height: 240px;
     }
 
-    .img{
+    .img {
         margin-left: 8%;
     }
 
-    .paras{
+    .paras {
         margin-left: 30%;
     }
 }
 
 @media screen and (max-width: 560px) {
-    
-    .img{
+
+    .img {
         margin-left: 5%;
     }
 
-    .paras{
+    .paras {
         margin-left: 28%;
     }
 }
 
 @media screen and (max-width: 530px) {
-    
-    .img{
+
+    .img {
         margin-left: 2%;
     }
 
-    .paras{
+    .paras {
         margin-left: 26%;
     }
 }
 
 @media screen and (max-width: 510px) {
-    
+
     .container-center-horizontal {
         height: 230px;
     }
 
-    .img{
+    .img {
         margin-left: 3%;
         width: 180px;
         height: 80px;
     }
 
-    .paras{
+    .paras {
         margin-left: 24%;
     }
-    
+
 }
 
 @media screen and (max-width: 480px) {
-    
+
     .container-center-horizontal {
         height: 220px;
     }
 
-    .img{
+    .img {
         margin-left: 2%;
         width: 180px;
         height: 80px;
     }
 
-    .paras{
+    .paras {
         margin-left: 27%;
     }
-    
+
 }
 
 @media screen and (max-width: 470px) {
 
 
-    .img{
+    .img {
         margin-left: 8%;
         width: 140px;
         height: 60px;
     }
 
-    .paras{
+    .paras {
         margin-left: 24%;
     }
-    
+
 }
 
 @media screen and (max-width: 445px) {
-    
 
-    .img{
+
+    .img {
         margin-left: 4%;
         width: 140px;
         height: 60px;
     }
 
-    .paras{
+    .paras {
         margin-left: 20%;
     }
-    
+
 }
 
 @media screen and (max-width: 425px) {
-    
 
-    .img{
+
+    .img {
         margin-left: 12%;
         margin-top: 10%;
         width: 140px;
@@ -200,10 +213,10 @@ border-bottom: 6px solid #4A14A6;
         transform: rotate(90deg);
     }
 
-    .paras{
+    .paras {
         margin-left: 18%;
     }
-    
+
 }
 
 @media screen and (max-width: 420px) {
@@ -211,10 +224,10 @@ border-bottom: 6px solid #4A14A6;
         height: 214px;
     }
 
-    .paras{
+    .paras {
         margin-left: 18%;
     }
-    
+
 }
 
 @media screen and (max-width: 400px) {
@@ -222,31 +235,31 @@ border-bottom: 6px solid #4A14A6;
         height: 210px;
     }
 
-    .img{
+    .img {
         margin-left: 8%;
         margin-top: 10%;
     }
 
-    .paras{
+    .paras {
         margin-left: 14%;
     }
-    
+
 }
 
-@media screen and (max-width: 380px) {  
+@media screen and (max-width: 380px) {
     .container-center-horizontal {
         height: 208px;
     }
 
-    .img{
+    .img {
         margin-left: 2%;
 
     }
 
-    .paras{
+    .paras {
         margin-left: 10%;
     }
-    
+
 }
 
 @media screen and (max-width: 360px) {
@@ -254,15 +267,15 @@ border-bottom: 6px solid #4A14A6;
         height: 209px;
     }
 
-    .img{
+    .img {
         margin-left: -3%;
 
     }
 
-    .paras{
+    .paras {
         margin-left: 5%;
     }
-    
+
 }
 
 
@@ -271,15 +284,15 @@ border-bottom: 6px solid #4A14A6;
         height: 203px;
     }
 
-    .img{
+    .img {
         margin-left: -6%;
- 
+
     }
 
-    .paras{
+    .paras {
         margin-left: 2%;
     }
-    
+
 }
 
 
@@ -288,13 +301,13 @@ border-bottom: 6px solid #4A14A6;
         height: 201px;
     }
 
-    .img{
+    .img {
         margin-left: -9%;
 
     }
 
-    .paras{
+    .paras {
         margin-left: -1%;
     }
-    
+
 }
