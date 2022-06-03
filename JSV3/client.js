@@ -29,11 +29,6 @@ let statusTerminal3 = document.getElementById("statusTerminal3");
 let terminalUsed = document.getElementById("nbTermialUsed");
 
 
-socket.on("changeTerminalUsed", (dataR) => {
-   console.log("B ", dataR)
-   //terminalUsed.innerHTML = dataR
-})
-
 socket.on("newValueIhm", (dataR) => {
    console.log("Data R : ", dataR)
    changeB(dataR);
@@ -41,6 +36,7 @@ socket.on("newValueIhm", (dataR) => {
 
 
 function changeB(dataR) {
+
    let copyAdrTerminal;
    let copyStatusTerminal;
    let copyKwRemaining;
@@ -125,19 +121,19 @@ function setKwhLeft(valueR, elementR) {
 }
 
 //
-function setTimeLeft(valueR, elementR) {
-   let result;
+function setTimeLeft(d, elementR) {
 
-   let d = Number(valueR);
-   let h = Math.floor(d / 3600);
-   let m = Math.floor(d % 3600 / 60);
+   d = Number(d);
 
-   let hDisplay = h > 0 ? h +"h": "";
-   let mDisplay = m > 0 ? m : "0";
+   var h = Math.floor(d / 3600);
+   var m = Math.floor(d % 3600 / 60);
+   var s = Math.floor(d % 3600 % 60);
 
-   result = hDisplay + mDisplay;
+   var hDisplay = h > 0 ? h + "h" : "";
+   var mDisplay = m > 0 ? m + "m" : "";
+   var sDisplay = s > 0 ? s + "s" : "0 minute";
 
-   elementR.innerHTML = result;
+   elementR.innerHTML = hDisplay + mDisplay + sDisplay;
 }
 
 
