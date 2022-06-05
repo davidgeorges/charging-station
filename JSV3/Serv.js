@@ -342,10 +342,8 @@ class Server {
     */
     calcPrioCoeff() {
         let tabPrio = [];
-        let nbCalcul = 0;
         self.tabTerminal.forEach(element => {
             if (element.getStatus() == "0x01") {
-                nbCalcul++;
                 element.setPrio((((element.getTimeLeft() / 3600) / element.getKwhLeft())).toFixed(5));
                 tabPrio.push({
                     adr: element.getAdr("rfid"),
