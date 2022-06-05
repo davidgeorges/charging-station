@@ -135,7 +135,7 @@ function setTimeLeft(d, elementR) {
 
    console.log('TT : ',d);
 
-   if(d==0){
+   if(d<=0){
       elementR.innerHTML = "0 minute"
    }else{
       elementR.innerHTML = hDisplay + mDisplay + sDisplay;
