@@ -328,7 +328,7 @@ class Server {
         //Pour chaque element du tableau on change la valeur des kwh a fournir
         for (const [indexPrio, elementPrio] of tabPrio.entries()) {
             for (let elementTerminal of self.tabTerminal) {
-                if (elementPrio.adr == elementTerminal.getAdr("rfid") && elementTerminal.getStatus() == "0x01") {
+                if (elementPrio.adr == elementTerminal.getAdr("rfid")) {
                     elementTerminal.setKwhGive(self.crc16.convertIntoHexaBuffer((tabPourcentage[indexPrio] * 70).toString(16), "kwhGive"));
                 }
             }
@@ -353,10 +353,7 @@ class Server {
                 })
             }
         });
-        if (nbCalcul > 0) {
-            self.calculKwh(tabPrio);
-            console.log("T : ",tabPrio);
-        }
+        self.calculKwh(tabPrio);
     }
 
     /**
