@@ -57,6 +57,11 @@ class Server {
         this.intervalWebIhm = null;
         this.nbBorneUsed = 0;
 
+        this.hardReset = {
+            data : null,
+            status : false,
+        }
+
         //Pour 
         self = this;
 
@@ -205,7 +210,7 @@ class Server {
                     self.determineBddError(dataR.length.toString(), dataStatus)
                     if (!dataStatus.err) { resolve(dataR) } else {
                         let indexTerminal = self.findIndex("rfid", valueR.adr);
-                        self.tabTerminal[indexTerminal].setStatus("0x0D");
+                        self.tabTerminal[indexTerminal].setStatus(dataStatus.status);
                         setTimeout(() => {
                             self.tabTerminal[indexTerminal].setStatus("0x00");
                         }, 7000)
@@ -213,7 +218,6 @@ class Server {
                         self.io.emit("newSimulationFromServ", { id: "b" + newIndex + "b4" })
                         reject((dataStatus.status))
                     }
-
                 })
             } else {
                 reject();
@@ -251,8 +255,22 @@ class Server {
                     self.canEmit = true;
                     return;
                 }
-                //Mise  ajour des valeurs de l'ihm avant d'envoyer la trame
-                if (whoIsWriting == "ihm") { self.tabTerminal[indexTerminal].setHimValue(); }
+
+                if ((self.hardReset.status)) {
+                    console.log("dans hard reset " , self.hardReset);
+                    self.io.emit("newSimulationFromServ", self.hardReset.data);
+                    self.tabTerminal[self.hardReset.data.index].resetData(true)
+                    for (let [index, element] of self.tabTerminal.entries()) {
+                        if (element.getStatus() == "0x0F") {
+                            console.log("forced deco");
+                            await self.disconnectCar(index)
+                        }
+                    }
+                    self.calcPrioCoeff();
+                    self.hardReset.status = false;
+                    self.canEmit = true;
+                    return;
+                }
 
                 await self.mySerial.writeData(self.tabFrameToRead[indextabFrameToRead].data, whoIsWriting)
                     .then(async (res) => {
@@ -302,7 +320,7 @@ class Server {
     */
     calculKwh(tabPrioR) {
         let tabPrio = tabPrioR;
-        let pourcentage = self.getPourcentage(tabPrio.length)
+        let tabPourcentage = self.getPourcentage(tabPrio.length)
 
         //Tri croissant du coefficient de priorité
         tabPrio.sort(function (a, b) { return a.prio - b.prio });
@@ -310,11 +328,12 @@ class Server {
         //Pour chaque element du tableau on change la valeur des kwh a fournir
         for (const [indexPrio, elementPrio] of tabPrio.entries()) {
             for (let elementTerminal of self.tabTerminal) {
-                if (elementPrio.adr == elementTerminal.getAdr("wattMeter") && elementTerminal.getStatus() == "0x01") {
-                    elementTerminal.setKwhGive(self.crc16.convertIntoHexaBuffer((pourcentage[indexPrio] * 70).toString(16), "kwhGive"));
+                if (elementPrio.adr == elementTerminal.getAdr("rfid") && elementTerminal.getStatus() == "0x01") {
+                    elementTerminal.setKwhGive(self.crc16.convertIntoHexaBuffer((tabPourcentage[indexPrio] * 70).toString(16), "kwhGive"));
                 }
             }
         }
+
     }
 
 
@@ -327,15 +346,16 @@ class Server {
         self.tabTerminal.forEach(element => {
             if (element.getStatus() == "0x01") {
                 nbCalcul++;
-                element.setPrio( (((element.getTimeLeft()/3600)/element.getKwhLeft())).toFixed(5) );
+                element.setPrio((((element.getTimeLeft() / 3600) / element.getKwhLeft())).toFixed(5));
                 tabPrio.push({
-                    adr: element.getAdr("wattMeter"),
+                    adr: element.getAdr("rfid"),
                     prio: element.getPrio(),
                 })
             }
         });
         if (nbCalcul > 0) {
             self.calculKwh(tabPrio);
+            console.log("T : ",tabPrio);
         }
     }
 
@@ -443,6 +463,7 @@ class Server {
             self.calcPrioCoeff();
             self.insertPrioFrame("newCar", indexTerminalR, newTabPrioFrame)
             await self.connectCar(indexTerminalR, newTabPrioFrame, tabSaveAllKwhUsed).then((res) => {
+                self.sendTabVal();
             }).catch((err) => {
                 self.io.emit("newSimulationFromServ", { id: "b" + newIndex + "b4" })
             })
@@ -452,7 +473,7 @@ class Server {
             self.tabTerminal[indexTerminalR].setStatusModule("canBeRead", "rfid");
             self.tabTerminal[indexTerminalR].setStatusModule("dontRead", "wattMeter");
             //On redonne les kWh avant le calcul de prio
-            for (var [index, element2] of self.tabTerminal.entries()) {
+            for (let [index, element2] of self.tabTerminal.entries()) {
                 element2.setKwhGive(tabSaveAllKwhUsed[index])
             }
             self.io.emit("newSimulationFromServ", { id: "b" + newIndex + "b4" })
@@ -561,10 +582,13 @@ class Server {
                 let kwhGive = element.getKwhGive()
                 let kwhLeft = element.getKwhLeft()
                 let timeLeft = element.getTimeLeft();
+                let estimationCharge = element.getEstimationCharge();
                 kwhLeft -= (((parseInt(kwhGive[0].substring(2) + kwhGive[1].substring(2), 16)) / 1000) / 3600)
-                timeLeft -= 1;
+                estimationCharge = kwhLeft / (((parseInt(kwhGive[0].substring(2) + kwhGive[1].substring(2), 16)) / 1000) / 3600)
+                timeLeft -= 1
                 element.setKwhLeft(kwhLeft)
                 element.setTimeLeft(timeLeft.toFixed(2));
+                element.setEstimationCharge(estimationCharge.toFixed(2))
             }
             ihmWeb = element.getWebHimData();
             self.io.emit("newValueIhm", ihmWeb)
@@ -637,11 +661,11 @@ class Server {
         let inputs = {
             "-1": function () {
                 dataStatusR.err = true;
-                dataStatusR.status = "databaseTimeout";
+                dataStatusR.status = "0x0D";
             },
             "0": function () {
                 dataStatusR.err = true;
-                dataStatusR.status = "userNotAvailable";
+                dataStatusR.status = "0x10";
             },
             "1": function () {
                 dataStatusR.status = "userAvailable";
@@ -670,12 +694,26 @@ class Server {
         inputs[statusR]();
     }
 
+    sendTabVal() {
+        let tabVal = [];
+        for (const element of self.tabTerminal) {
+            if (element.getStatus() == "0x01") {
+                let value = element.getKwhGive()
+                tabVal.push((parseInt(value[0].substring(2) + value[1].substring(2), 16) / 1000))
+                tabVal.push(parseInt(element.getKwhGiveHim(), 16))
+            } else {
+                tabVal.push(0)
+                tabVal.push(0)
+            }
+        }
+        self.io.emit("newSimulationFromServ", { id: "bb", tabVal })
+    }
     /**
     * Déconnexion d'un véhicule
     * @param  indexTerminalR L'index de l'élement du tableau des bornes qui vient se de déconnecter
     */
     async disconnectCar(indexTerminalR) {
-
+        console.log("L 692");
         /*On sauvegarde le kwh utilisé par les véhicules en chargement;
         pour contrer un crash lors d'une éventuelle IHM HS lors de la déconnexion d'un véhicule*/
         let tabSaveAllKwhUsed = self.saveAllKwhUsed()
@@ -683,14 +721,20 @@ class Server {
         let newTabPrioFrame = []
         let newIndex = indexTerminalR+1
 
-        self.tabTerminal[indexTerminalR].disconnectCar('0x00', "canBeRead", "dontRead", "OFF")
+        self.tabTerminal[indexTerminalR].setContactor("OFF");
+        self.tabTerminal[indexTerminalR].setStatus("0x00")
         self.calcPrioCoeff()
         self.insertPrioFrame("discoCar", indexTerminalR, newTabPrioFrame);
-
+        console.log("L 704");
         await self.writePrioFrame(newTabPrioFrame).then((res) => {
+            console.log("L 710");
+            self.tabTerminal[indexTerminalR].disconnectCar("canBeRead", "dontRead")
             self.io.emit("newSimulationFromServ", { id: "b" + newIndex + "b4" })
+            self.sendTabVal();
             self.nbBorneUsed--;
+
         }).catch((err) => {
+            console.log("L 713");
             self.refuseDisconnection(err.adr, indexTerminalR, tabSaveAllKwhUsed)
         })
 
@@ -703,19 +747,22 @@ class Server {
     * @param  tabSaveAllKwhUsedR Tableau des anciens kWs fourni
     */
     refuseDisconnection(adrDeconnectionR, indexTerminalR, tabSaveAllKwhUsedR) {
+        console.log("L 723");
         //Si celui qui a crash n'est pas le module qui demande une deco
         if (adrDeconnectionR != self.tabTerminal[indexTerminalR].getAdr("him")) {
             let indexTerminalError = self.findIndex("him", adrDeconnectionR);
             self.tabTerminal[indexTerminalError].brokenDown("0x0B", "broken", "broken");
             self.tabTerminal[indexTerminalR].resetData(false);
             self.tabTerminal[indexTerminalR].setStatus("0x0F");
+            console.log("L 730");
 
         } else {
             self.tabTerminal[indexTerminalR].brokenDown("0x0C", "broken", "broken");
+            console.log("L 734");
         }
 
         //Deco erreur donc on remet les kwh avant le recalcul de prio
-        for (var [index, element] of self.tabTerminal.entries()) {
+        for (let [index, element] of self.tabTerminal.entries()) {
             element.setKwhGive(tabSaveAllKwhUsedR[index])
         }
     }
@@ -744,25 +791,30 @@ class Server {
     */
     refuseNewConnection(adrDeconnectionR, indexTerminalR, tabSaveAllKwhUsedR) {
 
-        let newIndex = indexTerminalR+1;
-        //Si celui qui a crash n'est pas le nouveau module
+        let newIndex = indexTerminalR + 1;
+        //Si celui qui a crash n'est pas le nouveau module  
+        self.tabTerminal[indexTerminalR].resetData(false);
+        self.tabTerminal[indexTerminalR].brokenDown("0x0E", "canBeRead", "dontRead")
         if (adrDeconnectionR != self.tabTerminal[indexTerminalR].getAdr("him")) {
+            console.log("L 768");
             let indexTerminalError = self.findIndex("him", adrDeconnectionR);
             self.tabTerminal[indexTerminalError].brokenDown("0x0B", "broken", "broken")
             //On redonne les kWh avant le calcul de prio
-            for (var [index, element2] of self.tabTerminal.entries()) {
+            for (let [index, element2] of self.tabTerminal.entries()) {
                 element2.setKwhGive(tabSaveAllKwhUsedR[index])
-            }
+            }   
 
         } else {
+            console.log("L 777");
             self.calcPrioCoeff();
         }
-        self.tabTerminal[indexTerminalR].resetData(false);
-        self.tabTerminal[indexTerminalR].brokenDown("0x0E", "canBeRead", "dontRead")
+      
         self.io.emit("newSimulationFromServ", { id: "b" + newIndex + "b4" });
+
         setTimeout(() => {
             self.tabTerminal[indexTerminalR].setStatus("0x00");
         }, 7000)
+        console.log("L 787");
     }
 
     /**
@@ -882,25 +934,21 @@ class Server {
 
             socket.on("newSimulationFromPanel", (dataR) => {
                 self.io.emit("newSimulationFromServ", dataR);
-                console.log("Reçu du panel");
+                console.log("Reçu du panel", dataR);
             })
 
             socket.on("disconnectFromPanel", (dataR) => {
                 self.tabTerminal[dataR.index].setKwhLeft(0);
                 self.io.emit("newSimulationFromServ", dataR);
-                console.log("Deco Reçu du panel")
+                console.log("Deco Reçu du panel ", dataR)
             })
 
             socket.on("hardResetFromPanel", async (dataR) => {
-                self.io.emit("newSimulationFromServ", dataR);
-                self.tabTerminal[dataR.index].resetData(true)
-                for (let [index, element] of self.tabTerminal.entries()) {
-                    if (element.getStatus() == "0x0F") {
-                        await self.disconnectCar(index)
-                    }
-                }
-                self.calcPrioCoeff();
                 console.log("hardReset Reçu du panel")
+                self.hardReset = {
+                    data : dataR,
+                    status : true,
+                }
             })
 
         })

@@ -131,9 +131,17 @@ function setTimeLeft(d, elementR) {
 
    var hDisplay = h > 0 ? h + "h" : "";
    var mDisplay = m > 0 ? m + "m" : "";
-   var sDisplay = s > 0 ? s + "s" : "0 minute";
+   var sDisplay = s > 0 ? s + "s" : "";
 
-   elementR.innerHTML = hDisplay + mDisplay + sDisplay;
+   console.log('TT : ',d);
+
+   if(d==0){
+      elementR.innerHTML = "0 minute"
+   }else{
+      elementR.innerHTML = hDisplay + mDisplay + sDisplay;
+   }
+
+   
 }
 
 

@@ -49,6 +49,7 @@ class Terminal {
                 kwhLeft: 0, // (kW Restant a charger ) kW fourni - kW a charger
                 kwhGive: ["0x00", "0x00"], //kW fourni pour la charge
                 timeLeft: 0, // (Temps restant possible en charge) temps écouler - temps de présence
+                estimationCharge :0,
                 prio: 0, // Coefficient  de priorité
                 timer: 0,
             },
@@ -239,11 +240,11 @@ class Terminal {
         let switchContactorValue = (valueR) => {
             let inputs = {
                 "OFF": () => {
-                    console.log("From Terminal.js [233] : Switch contactor OFF");
+                    console.log("From Terminal.js [233] : Switch contactor OFF : ",this.allData.him.adr);
                     newValue = "0x00";
                 },
                 "ON": () => {
-                    console.log("From Terminal.js [233] :  Switch contactor ON");
+                    console.log("From Terminal.js [233] :  Switch contactor ON : ",this.allData.him.adr);
                     newValue = "0xFF";
                 },
             }
@@ -291,13 +292,13 @@ class Terminal {
 
     resetData(hardReset) {
         if (hardReset) {
-            
             this.setStatus("0x00");
             this.setStatusModule("canBeRead", "rfid");
             this.setStatusModule("dontRead", "wattMeter");
             this.setContactor("OFF");
             this.resetAllNbRetry();
-        }this.stopTimer()
+        }
+        this.stopTimer()
         this.setAmpereValue(["0x00", "0x00"]);
         this.setVoltageValue(["0x00", "0x00"]);
         this.setPowerValue(["0x00", "0x00", "0x00", "0x00"]);
@@ -307,12 +308,13 @@ class Terminal {
         this.setPrio(0);
         this.nbKwh = 0;
         this.timeP = 0;
+        this.setEstimationCharge(0);
     }
 
-    resetAllNbRetry(){
-        this.setNbRetry("0","wattMeter")
-        this.setNbRetry("0","rfid")
-        this.setNbRetry("0","him")
+    resetAllNbRetry() {
+        this.setNbRetry("0", "wattMeter")
+        this.setNbRetry("0", "rfid")
+        this.setNbRetry("0", "him")
     }
 
     connectCar(kwhR, timePR, timeLeftR, kwhLeftR, statusR, contactorR, statusRfidR, statusWattMeterR) {
@@ -327,14 +329,11 @@ class Terminal {
         this.setStatusModule(statusWattMeterR, "wattMeter")
     }
 
-    disconnectCar(statusR, statusRfidR, statusWattMeterR, contactorR) {
+    disconnectCar(statusRfidR, statusWattMeterR) {
         this.stopTimer()
         this.resetData(false);
-        this.setStatus(statusR);
         this.setStatusModule(statusRfidR, "rfid");
         this.setStatusModule(statusWattMeterR, "wattMeter");
-        this.setContactor(contactorR);
-
     }
 
     brokenDown(statusR, statusRfidR, statusWattMeterR) {
@@ -354,6 +353,8 @@ class Terminal {
 
     stopTimer() {
         clearInterval(this.intervalTimer);
+        this.allData.data.timer = 0;
+        this.setTimerHim();
         this.intervalTimer = null;
     }
 
@@ -388,15 +389,13 @@ class Terminal {
     //Modifie le nombre de kwh fourni au niveau de la trame ihm ( consigne )
     setKwhGiveHim(valueR) {
         //Changement Consigne courant
-        var str = Math.round(parseInt(valueR[0].substring(2,4)+valueR[1].substring(2,4), 16)/230)
-        console.log("TESTTTTTTTT 2232: ", str)
+        var str = Math.trunc(parseInt(valueR[0].substring(2, 4) + valueR[1].substring(2, 4), 16) / 230)
         str = str.toString(16)
-        console.log("TESTTTTTTTT 2332: ", str)
         var stringHex = this.crc16.determineString(str)
-        this.allData.him.frame[0][9] = stringHex+str
-        console.log("TESTTTTTTTTTTTTTT: ",  this.allData.him.frame[0][9])
-
+        this.allData.him.frame[0][9] = stringHex + str
         this.setCrcHim();
+
+
     }
 
 
@@ -477,7 +476,11 @@ class Terminal {
     //Modifie le temps restant en charge
     setTimeLeft(valueR) {
         this.allData.data.timeLeft = valueR;
-        this.setWebHimDuration(valueR);
+    }
+
+    setEstimationCharge(valueR) {
+        this.allData.data.estimationCharge = valueR;
+        this.setWebHimEstimationCharge(valueR);
     }
 
     //Modifie le coefficient de priorité 
@@ -522,6 +525,7 @@ class Terminal {
                 "0x0D": "ERROR IN BDD",
                 "0x0E": "CONNECTION REFUSED",
                 "0x0F": "DECONNECTION ERROR",
+                "0x10": "NO USER IN BDD",
             }
             return inputs[val];
         }
@@ -537,14 +541,9 @@ class Terminal {
         this.allData.himWeb.tabData[0][2] = valueR;
     }
 
-    setWebHimDuration(valueR) {
+    setWebHimEstimationCharge(valueR) {
         this.allData.himWeb.tabData[0][3] = valueR;
     }
-
-    setWebHimPourcentage(valueR) {
-        this.allData.himWeb.tabData[0][5] = valueR;
-    }
-
 
     //----------------------------- GETTER -----------------------------//
 
@@ -619,6 +618,15 @@ class Terminal {
     //Renvoie le status du contacteur
     getStatusContactor() {
         return this.allData.contactor.frame[0][3];
+    }
+
+    //Renvoie la consigne envoyer a l'IHM
+    getKwhGiveHim() {
+        return this.allData.him.frame[0][9]
+    }
+
+    getEstimationCharge() {
+        return  this.allData.data.estimationCharge 
     }
 
 
